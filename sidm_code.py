@@ -12,19 +12,14 @@ from astropy.io import fits
 from astropy.wcs import WCS
 from scipy import ndimage
 from astropy.stats import sigma_clipped_stats
-from photutils import make_source_mask
-from photutils import Background2D, SigmaClip, MedianBackground
-from photutils import detect_sources
+from photutils import Background2D, SigmaClip, MedianBackground, make_source_mask, detect_sources
 from astropy.convolution import Gaussian2DKernel
 from astropy.stats import gaussian_fwhm_to_sigma
 from astropy.visualization import SqrtStretch
 from astropy.visualization.mpl_normalize import ImageNormalize
 from photutils.utils import random_cmap
-from photutils import detect_threshold
-from photutils import source_properties, properties_table
-from photutils import EllipticalAperture
+from photutils import detect_threshold, source_properties, properties_table, EllipticalAperture
 from scipy.ndimage import rotate
-import statsmodels.api as sm
 from scipy.stats import norm
 import scipy as sc
 from astropy.modeling import models, fitting
@@ -58,18 +53,15 @@ for f in lfiles:
     kernel.normalize()
     segm = detect_sources(data, threshold, npixels=5, filter_kernel=kernel)
 
-    print('labels = ',np.max(segm.labels))
-
     rand_cmap = random_cmap(segm.max + 1, random_state=12345)
     fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(8, 8))
     ax1.imshow(data, origin='lower', cmap='Greys_r')
     ax2.imshow(segm, origin='lower', cmap=rand_cmap)
-    plt.savefig('figs/'+str(f)+'fig2.png')
+    plt.savefig('../figs/'+str(f[:-5])+'fig2.png')
 
 
     props = source_properties(data, segm)
     tbl = properties_table(props)
-    print(tbl)
 
     my_min = 100000.
 
@@ -96,21 +88,24 @@ for f in lfiles:
     for aperture in apertures:
         aperture.plot(color='blue', lw=1.5, alpha=0.5, ax=ax1)
         aperture.plot(color='white', lw=1.5, alpha=1.0, ax=ax2)
-    plt.savefig('../figs/'+str(f)+'fig3.png')
+    plt.savefig('../figs/'+str(f[:-5])+'fig3.png')
     plt.close()
 
-    data3 = props[my_label].make_cutout(data-bkg.background)
+    data3 = data - bkg.background #props[my_label].make_cutout(data-bkg.background) 
+    data4 = rotate(data3, np.rad2deg(mytheta))
+    data4 = data4[data4.shape[0]/2 - 30:data4.shape[0]/2 + 30,data4.shape[1]/2 - 30:data4.shape[1]/2 + 30]
 
-    plt.figure()
-    data4 = rotate(data3, np.rad2deg(mytheta))    
+    plt.figure()    
     plt.imshow(data4, origin='lower', cmap='Greys_r') 
-    plt.savefig('../figs/'+str(f)+'fig4.png')
+    plt.savefig('../figs/'+str(f[:-5])+'fig4.png')
+
 
     a = data4.shape[1]
     b = data4.shape[0]
 
     mymu     = np.zeros(a)
     mysigma  = np.zeros(a)
+    mymask   = np.zeros(a,dtype='bool')
     mypixel  = np.zeros(a)
     mypixerr = np.zeros(a)
 
@@ -118,39 +113,56 @@ for f in lfiles:
     
         g = models.Gaussian1D(amplitude=90.1,mean=np.float(a)/2.,stddev=3.2)
         datad = np.array(data4[:,i])
-        print('len=',len(datad))
-        print(datad)
-        arrd = range(len(datad))
+        arrd = np.array(range(len(datad)))
+        maskd = (datad != 0)
+        arrd  = arrd[maskd]
+        datad = datad[maskd] 
         
         fit = fitting.LevMarLSQFitter()
         fitted_model = fit(g, arrd, datad)
         mymu[i]    = fitted_model.mean.value
         mysigma[i] = np.abs(fitted_model.stddev.value)
-        print(mymu[i],mysigma[i]) 
-        print(fitted_model)
+        #print(fit.fit_info['ierr'])
+        #print(fit.fit_info['message'])
+        dec = fit.fit_info['ierr']
+        if((dec>=1)*(dec<=4)): mymask[i] = True
+        
     
         plt.figure()
         plt.plot(arrd,fitted_model(arrd))
-        plt.scatter(arrd,np.array(data4[:,i]))
-        plt.savefig('../fig_gauss/'+str(f)+'fig_'+str(i)+'.png')
+        plt.scatter(arrd,np.array(data4[:,i]),label=str(dec))
+        plt.legend()
+        plt.savefig('../fig_gauss/'+str(f[:-5])+'fig_'+str(i)+'.png')
+
+    
 
     arr2 = range(a)
+    arr2 = np.array(arr2)
+    print(arr2)
+
+    arr2 = arr2[mymask]
+    mymu = mymu[mymask]
+    mysigma = mysigma[mymask]
+
+    print(arr2)
+    print(mymu)
 
     plt.figure()    
     plt.imshow(data4, origin='lower', cmap='Greys_r') 
     plt.plot(arr2,mymu,markersize=0.1,lw=1)
-    plt.savefig('../figs/'+str(f)+'fig5.png')
+    plt.savefig('../figs/'+str(f[:-5])+'fig5.png')
 
 
     plt.figure()
     plt.imshow(data4, origin='lower', cmap='Greys_r') 
     plt.errorbar(arr2,mymu,yerr=mysigma,fmt='o',markersize=0.1,lw=0.5)
-    plt.savefig('../figs/'+str(f)+'fig6.png')
+    plt.savefig('../figs/'+str(f[:-5])+'fig6.png')
 
     mymup = mymu - np.float(b)/2.
-    print(mymu)
+    
 
     x = np.arange(-a/2,a/2,1)
+    x = x[mymask]
 
     w = 0.
     w2 = 0.
@@ -160,6 +172,8 @@ for f in lfiles:
     for i in range(0,len(x)):
         w2 += np.abs(x[i])*mymup[i]/((np.float(a)/2.)**3) 
 
+    w = np.abs(w)
+    w2 = np.abs(w2) 
     print(w,w2)
 
     wf.append(w)
