@@ -22,7 +22,6 @@ from astropy.visualization.mpl_normalize import ImageNormalize
 from photutils.utils import random_cmap
 from photutils import detect_threshold
 from photutils import source_properties, properties_table
-from photutils import source_properties, properties_table
 from photutils import EllipticalAperture
 from scipy.ndimage import rotate
 import statsmodels.api as sm
@@ -46,13 +45,11 @@ for f in lfiles:
 
     data = hdu.data
 
-    #print(hdu.header)
 
     sigma_clip = SigmaClip(sigma=3., iters=10)
     bkg_estimator = MedianBackground()
     bkg = Background2D(data, (25, 25), filter_size=(3, 3),sigma_clip=sigma_clip, bkg_estimator=bkg_estimator)
 
-    #print(bkg)
 
     threshold = bkg.background + (3. * bkg.background_rms)
 
@@ -64,9 +61,8 @@ for f in lfiles:
     print('labels = ',np.max(segm.labels))
 
     rand_cmap = random_cmap(segm.max + 1, random_state=12345)
-    #norm = ImageNormalize(stretch=SqrtStretch())
     fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(8, 8))
-    ax1.imshow(data, origin='lower', cmap='Greys_r')#, norm=norm)
+    ax1.imshow(data, origin='lower', cmap='Greys_r')
     ax2.imshow(segm, origin='lower', cmap=rand_cmap)
     plt.savefig('figs/'+str(f)+'fig2.png')
 
@@ -77,8 +73,6 @@ for f in lfiles:
 
     my_min = 100000.
 
-
-    #props = source_properties(data, segm)
     r = 2.    # approximate isophotal extent
     apertures = []
     for prop in props:
@@ -96,9 +90,8 @@ for f in lfiles:
     mytheta = props[my_label].orientation.value
 
     rand_cmap = random_cmap(segm.max + 1, random_state=12345)
-    #norm = ImageNormalize(stretch=SqrtStretch())
     fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(8, 8))
-    ax1.imshow(data, origin='lower', cmap='Greys_r')#, norm=norm)
+    ax1.imshow(data, origin='lower', cmap='Greys_r')
     ax2.imshow(segm, origin='lower', cmap=rand_cmap)
     for aperture in apertures:
         aperture.plot(color='blue', lw=1.5, alpha=0.5, ax=ax1)
@@ -109,13 +102,12 @@ for f in lfiles:
     data3 = props[my_label].make_cutout(data-bkg.background)
 
     plt.figure()
-    data4 = rotate(data3, np.rad2deg(mytheta))
-    #norm = ImageNormalize(stretch=SqrtStretch())    
-    plt.imshow(data4, origin='lower', cmap='Greys_r')#, norm=norm) 
+    data4 = rotate(data3, np.rad2deg(mytheta))    
+    plt.imshow(data4, origin='lower', cmap='Greys_r') 
     plt.savefig('../figs/'+str(f)+'fig4.png')
 
-    a = data4.shape[1]#np.shape(data4[1])
-    b = data4.shape[0]#np.shape(data4[0])
+    a = data4.shape[1]
+    b = data4.shape[0]
 
     mymu     = np.zeros(a)
     mysigma  = np.zeros(a)
@@ -125,14 +117,10 @@ for f in lfiles:
     for i in range(a):
     
         g = models.Gaussian1D(amplitude=90.1,mean=np.float(a)/2.,stddev=3.2)
-        #arrd = np.linspace(0,126,127)
         datad = np.array(data4[:,i])
         print('len=',len(datad))
         print(datad)
-        #datad = datad[datad != 0]
-        print(datad)
-        arrd = range(len(datad))#np.linspace(0,len(datad)-1,len(datad))
-        print(arrd) 
+        arrd = range(len(datad))
         
         fit = fitting.LevMarLSQFitter()
         fitted_model = fit(g, arrd, datad)
@@ -141,32 +129,24 @@ for f in lfiles:
         print(mymu[i],mysigma[i]) 
         print(fitted_model)
     
-        #arr2 = np.linspace(0,len(datad),len(datad)+1)
         plt.figure()
-        #plt.plot(arr2,mymax*((np.sqrt(2.*np.pi)*mysigma[60])**(-1.))*np.exp(-0.5*((arr2-mymu[60])/mysigma[60])**2))
-        plt.plot(arrd,fitted_model(arrd),label="No removal")
+        plt.plot(arrd,fitted_model(arrd))
         plt.scatter(arrd,np.array(data4[:,i]))
-        plt.legend()
         plt.savefig('../fig_gauss/'+str(f)+'fig_'+str(i)+'.png')
 
     arr2 = range(a)
 
-    plt.figure()
-    #norm = ImageNormalize(stretch=SqrtStretch())    
-    plt.imshow(data4, origin='lower', cmap='Greys_r')#, norm=norm) 
-    #plt.errorbar(arr2,mymu,yerr=mysigma,fmt='o',markersize=0.1,lw=0.5)
+    plt.figure()    
+    plt.imshow(data4, origin='lower', cmap='Greys_r') 
     plt.plot(arr2,mymu,markersize=0.1,lw=1)
     plt.savefig('../figs/'+str(f)+'fig5.png')
 
 
     plt.figure()
-    #norm = ImageNormalize(stretch=SqrtStretch())    
-    plt.imshow(data4, origin='lower', cmap='Greys_r')#, norm=norm) 
+    plt.imshow(data4, origin='lower', cmap='Greys_r') 
     plt.errorbar(arr2,mymu,yerr=mysigma,fmt='o',markersize=0.1,lw=0.5)
-    #plt.plot(arr2,mymu,markersize=0.1,lw=1)
     plt.savefig('../figs/'+str(f)+'fig6.png')
 
-    #mymup = np.zeros(len(mymu))
     mymup = mymu - np.float(b)/2.
     print(mymu)
 
