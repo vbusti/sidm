@@ -4,28 +4,32 @@
 
 from __future__ import print_function
 import numpy as np
-import sys
-import argparse
 import matplotlib.pyplot as plt
 from matplotlib import cm
 from astropy.io import fits
 from astropy.wcs import WCS
 from scipy import ndimage
 from astropy.stats import sigma_clipped_stats
+from photutils.utils import random_cmap
+from photutils import detect_threshold, source_properties, properties_table, EllipticalAperture
 from photutils import Background2D, SigmaClip, MedianBackground, make_source_mask, detect_sources
 from astropy.convolution import Gaussian2DKernel
 from astropy.stats import gaussian_fwhm_to_sigma
 from astropy.visualization import SqrtStretch
-from astropy.visualization.mpl_normalize import ImageNormalize
-from photutils.utils import random_cmap
-from photutils import detect_threshold, source_properties, properties_table, EllipticalAperture
-from scipy.ndimage import rotate
-from scipy.stats import norm
-import scipy as sc
 from astropy.modeling import models, fitting
 from astropy.stats import sigma_clip as ast_sc
+from scipy.ndimage import rotate
+from scipy.stats import norm
 
-with open("my_files.txt", "r") as ins:
+from scipy.optimize import curve_fit
+
+def my_chisq_min(x,y,amp,mean,sigma):
+    return np.sum( (y - amp*np.exp(- ((x-mean)**2/(2.*sigma**2))) )**2)/(np.float(len(y))-3.)
+    
+def my_gaussian(x,amp,mean,sigma):
+    return amp*np.exp(-(x-mean)**2/(2.*sigma**2)) 
+
+with open("my_files_temp.txt", "r") as ins:
     lfiles = []
     for line in ins:
         lfiles.append(line)
@@ -72,7 +76,7 @@ for f in lfiles:
         a = prop.semimajor_axis_sigma.value * r
         b = prop.semiminor_axis_sigma.value * r
         theta = prop.orientation.value
-        print(position,theta)
+        #print(position,theta)
         apertures.append(EllipticalAperture(position, a, b, theta=theta))
         my_dist = np.sqrt((prop.xcentroid.value - 44.)**2+ (prop.ycentroid.value - 44.)**2)
         if(my_dist < my_min):
@@ -105,7 +109,8 @@ for f in lfiles:
 
     mymu     = np.zeros(a)
     mysigma  = np.zeros(a)
-    mymask   = np.zeros(a,dtype='bool')
+    myamp    = np.zeros(a)
+    mymask   = np.ones(a,dtype='bool')
     mypixel  = np.zeros(a)
     mypixerr = np.zeros(a)
 
@@ -114,49 +119,50 @@ for f in lfiles:
         g = models.Gaussian1D(amplitude=90.1,mean=np.float(a)/2.,stddev=3.2)
         datad = np.array(data4[:,i])
         arrd = np.array(range(len(datad)))
-        maskd = (datad != 0)
+        maskd = (datad >= 0)
         arrd  = arrd[maskd]
         datad = datad[maskd] 
-        
-        fit = fitting.LevMarLSQFitter()
-        fitted_model = fit(g, arrd, datad)
-        mymu[i]    = fitted_model.mean.value
-        mysigma[i] = np.abs(fitted_model.stddev.value)
-        #print(fit.fit_info['ierr'])
-        #print(fit.fit_info['message'])
-        dec = fit.fit_info['ierr']
-        if((dec>=1)*(dec<=4)): mymask[i] = True
-        
+
+        try:
+            popt, pcov = curve_fit(my_gaussian, arrd, datad,p0=[40,30,3])
+        except:
+            mymask[i] = False 
+        else:        
+            print(popt)
+            mymu[i]    = popt[1]
+            mysigma[i] = popt[2]
     
-        plt.figure()
-        plt.plot(arrd,fitted_model(arrd))
-        plt.scatter(arrd,np.array(data4[:,i]),label=str(dec))
-        plt.legend()
-        plt.savefig('../fig_gauss/'+str(f[:-5])+'fig_'+str(i)+'.png')
+            plt.figure()
+            plt.plot(arrd, my_gaussian(arrd, *popt),label='curve fit')
+            plt.scatter(arrd,datad,label='data')
+            plt.legend()
+            plt.savefig('../fig_gauss/'+str(f[:-5])+'fig_'+str(i)+'.png')
+            plt.close()
 
     
 
     arr2 = range(a)
     arr2 = np.array(arr2)
-    print(arr2)
 
     arr2 = arr2[mymask]
     mymu = mymu[mymask]
     mysigma = mysigma[mymask]
 
-    print(arr2)
-    print(mymu)
-
-    plt.figure()    
+    plt.figure()
+    plt.xlim(0,60)
+    plt.ylim(0,60)     
     plt.imshow(data4, origin='lower', cmap='Greys_r') 
     plt.plot(arr2,mymu,markersize=0.1,lw=1)
     plt.savefig('../figs/'+str(f[:-5])+'fig5.png')
-
+    plt.close()
 
     plt.figure()
+    plt.xlim(0,60)
+    plt.ylim(0,60)
     plt.imshow(data4, origin='lower', cmap='Greys_r') 
-    plt.errorbar(arr2,mymu,yerr=mysigma,fmt='o',markersize=0.1,lw=0.5)
+    plt.errorbar(arr2,mymu,yerr=mysigma,fmt='o',markersize=0.1,lw=0.5,color='red')
     plt.savefig('../figs/'+str(f[:-5])+'fig6.png')
+    plt.close()
 
     mymup = mymu - np.float(b)/2.
     
@@ -174,7 +180,7 @@ for f in lfiles:
 
     w = np.abs(w)
     w2 = np.abs(w2) 
-    print(w,w2)
+    #print(w,w2)
 
     wf.append(w)
     w2f.append(w2)
