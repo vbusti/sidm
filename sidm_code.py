@@ -78,7 +78,6 @@ for f in lfiles:
         a = prop.semimajor_axis_sigma.value * r
         b = prop.semiminor_axis_sigma.value * r
         theta = prop.orientation.value
-        #print(position,theta)
         apertures.append(EllipticalAperture(position, a, b, theta=theta))
         my_dist = np.sqrt((prop.xcentroid.value - 44.)**2+ (prop.ycentroid.value - 44.)**2)
         if(my_dist < my_min):
@@ -87,7 +86,6 @@ for f in lfiles:
 
     mytheta = props[my_label].orientation.value
     mysize  = np.int(np.round(r*props[my_label].semimajor_axis_sigma.value*np.cos(mytheta)))
-    #print('my size = ',mysize)
 
     rand_cmap = random_cmap(segm.max + 1, random_state=12345)
     fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(8, 8))
@@ -105,14 +103,9 @@ for f in lfiles:
     w_rot  = rotate(weight, np.rad2deg(mytheta))
     w      = w_rot[w_rot.shape[0]/2 - 30:w_rot.shape[0]/2 + 30,w_rot.shape[1]/2 - 30:w_rot.shape[1]/2 + 30] 
 
-    print('w=',w[:,18])
-
     data_err = rotate(data, np.rad2deg(mytheta))
     data_err = data_err[data.shape[0]/2 - 30:data.shape[0]/2 + 30,data.shape[1]/2 - 30:data.shape[1]/2 + 30] 
  
-    print('data_err=',data_err[:,18])
-
-    print('data=',data4[:,18])
 
     plt.figure()    
     plt.imshow(data4, origin='lower', cmap='Greys_r') 
@@ -151,7 +144,7 @@ for f in lfiles:
             #print(popt)
             #print(np.sqrt(np.diag(pcov)))
             mymu[i]    = popt[1]
-            mysigma[i] = np.sqrt(np.diag(pcov))[1] #popt[2]
+            mysigma[i] = np.sqrt(np.diag(pcov))[1] 
     
             plt.figure()
             plt.plot(arrd, my_gaussian(arrd, *popt),label='curve fit')
