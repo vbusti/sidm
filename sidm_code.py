@@ -137,7 +137,7 @@ for f in lfiles:
         d_err = np.sqrt(np.abs(d_err))
 
         try:
-            popt, pcov = curve_fit(my_gaussian, arrd, datad,p0=[40,30,3],sigma=np.sqrt((1./wd))+d_err**2)#,sigma=np.sqrt(datad)
+            popt, pcov = curve_fit(my_gaussian, arrd, datad,p0=[40,30,3],sigma=np.sqrt((1./wd)+d_err**2))#,sigma=np.sqrt(datad)
         except:
             mymask[i] = False 
         else:        
