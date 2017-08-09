@@ -21,6 +21,7 @@ from astropy.stats import sigma_clip as ast_sc
 from scipy.ndimage import rotate
 from scipy.stats import norm
 from scipy.optimize import curve_fit
+import random
 
 def my_chisq_min(x,y,amp,mean,sigma):
     return np.sum( (y - amp*np.exp(- ((x-mean)**2/(2.*sigma**2))) )**2)/(np.float(len(y))-3.)
@@ -28,12 +29,38 @@ def my_chisq_min(x,y,amp,mean,sigma):
 def my_gaussian(x,amp,mean,sigma):
     return amp*np.exp(-(x-mean)**2/(2.*sigma**2)) 
 
+def my_bootstrap(x,y,sigma):
+    acc=0
+    mean_values = np.zeros(1000)
+    while(acc < 1000):
+        try:
+            x_b    = np.zeros(len(x))
+            y_b    = np.zeros(len(x))
+            err_yb = np.zeros(len(x)) 
+
+            for i in range(len(x)):
+                aux=random.randint(0,len(x)-1)
+                x_b[i]    = x[aux] 
+                y_b[i]    = y[aux]
+                err_yb[i] = sigma[aux] 
+
+            popt, pcov = curve_fit(my_gaussian, x_b, y_b,p0=[40,30,3],sigma=err_yb) 
+        except:
+            j=0# do nothing  
+        else:        
+            mean_values[acc]    = popt[1]
+            acc += 1 
+    return np.std(mean_values)
+            
+
+    
+
 with open("my_files.txt", "r") as ins:
     lfiles = []
     for line in ins:
         lfiles.append(line)
 
-folder = 'err_w_I'
+folder = 'err_w'
 
 wf  = []
 w2f = []
@@ -135,16 +162,17 @@ for f in lfiles:
         wd    = wd[maskd]
         d_err = d_err[maskd]
         d_err = np.sqrt(np.abs(d_err))
+        err_total = np.sqrt(1./wd)#np.sqrt((1./wd)+d_err**2) 
 
         try:
-            popt, pcov = curve_fit(my_gaussian, arrd, datad,p0=[40,30,3],sigma=np.sqrt((1./wd)+d_err**2))#,sigma=np.sqrt(datad)
+            popt, pcov = curve_fit(my_gaussian, arrd, datad,p0=[40,30,3],sigma=err_total)#,sigma=np.sqrt(datad) sigma=np.sqrt(1./wd)**2)
         except:
             mymask[i] = False 
         else:        
             #print(popt)
             #print(np.sqrt(np.diag(pcov)))
             mymu[i]    = popt[1]
-            mysigma[i] = np.sqrt(np.diag(pcov))[1] 
+            mysigma[i] = my_bootstrap(arrd,datad,err_total)#np.sqrt(np.diag(pcov))[1] 
     
             plt.figure()
             plt.plot(arrd, my_gaussian(arrd, *popt),label='curve fit')
@@ -174,7 +202,7 @@ for f in lfiles:
     plt.xlim(0,60)
     plt.ylim(0,60)
     plt.imshow(data4, origin='lower', cmap='Greys_r') 
-    plt.errorbar(arr2,mymu,yerr=mysigma,fmt='o',markersize=0.1,lw=0.5,color='blue')
+    plt.errorbar(arr2,mymu,yerr=mysigma,fmt='o',markersize=0.1,lw=1.0,color='blue')
     plt.savefig('../figs/'+str(folder)+'/'+str(f[:-5])+'fig6.png')
     plt.close()
 
