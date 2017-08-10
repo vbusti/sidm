@@ -60,10 +60,13 @@ with open("my_files.txt", "r") as ins:
     for line in ins:
         lfiles.append(line)
 
-folder = 'err_w'
+folder = 'err_w_I_test'
 
 wf  = []
 w2f = []
+
+vec_s  = []
+vec_os = []
 
 for f in lfiles:
     
@@ -85,6 +88,7 @@ for f in lfiles:
     kernel = Gaussian2DKernel(sigma, x_size=3, y_size=3)
     kernel.normalize()
     segm = detect_sources(data, threshold, npixels=5, filter_kernel=kernel)
+
 
     rand_cmap = random_cmap(segm.max + 1, random_state=12345)
     fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(8, 8))
@@ -111,8 +115,17 @@ for f in lfiles:
             my_label = prop.id - 1
             my_min = my_dist
 
-    mytheta = props[my_label].orientation.value
-    mysize  = np.int(np.round(r*props[my_label].semimajor_axis_sigma.value*np.cos(mytheta)))
+    mytheta  = props[my_label].orientation.value
+    mysize   = np.int(np.round(r*props[my_label].semimajor_axis_sigma.value*np.cos(mytheta)))
+    vec_s.append(mysize)
+    vec_os.append(a)
+    print('mysize = %d and size = %d'% (mysize,a)) 
+    
+    mask_obj = np.ones(data.shape,dtype='bool')
+    mask_obj[(segm.data != 0)*(segm.data != my_label)] = 0
+
+    weigth = weight[mask_obj]  
+
 
     rand_cmap = random_cmap(segm.max + 1, random_state=12345)
     fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(8, 8))
@@ -124,15 +137,11 @@ for f in lfiles:
     plt.savefig('../figs/'+str(folder)+'/'+str(f[:-5])+'fig3.png')
     plt.close()
 
-    data4 = rotate(data - bkg.background, np.rad2deg(mytheta))
+    data4 = rotate(data, np.rad2deg(mytheta))
     data4 = data4[data4.shape[0]/2 - 30:data4.shape[0]/2 + 30,data4.shape[1]/2 - 30:data4.shape[1]/2 + 30]
 
     w_rot  = rotate(weight, np.rad2deg(mytheta))
     w      = w_rot[w_rot.shape[0]/2 - 30:w_rot.shape[0]/2 + 30,w_rot.shape[1]/2 - 30:w_rot.shape[1]/2 + 30] 
-
-    data_err = rotate(data, np.rad2deg(mytheta))
-    data_err = data_err[data.shape[0]/2 - 30:data.shape[0]/2 + 30,data.shape[1]/2 - 30:data.shape[1]/2 + 30] 
- 
 
     plt.figure()    
     plt.imshow(data4, origin='lower', cmap='Greys_r') 
@@ -154,15 +163,12 @@ for f in lfiles:
         g     = models.Gaussian1D(amplitude=90.1,mean=np.float(a)/2.,stddev=3.2)
         datad = np.array(data4[:,i])
         wd    = np.array(w[:,i])
-        d_err = np.array(data_err[:,i])
         arrd  = np.array(range(len(datad)))
         maskd = (wd > 0.) #(datad >= 0)
         arrd  = arrd[maskd]
         datad = datad[maskd] 
         wd    = wd[maskd]
-        d_err = d_err[maskd]
-        d_err = np.sqrt(np.abs(d_err))
-        err_total = np.sqrt(1./wd)#np.sqrt((1./wd)+d_err**2) 
+        err_total = np.sqrt(1./wd)
 
         try:
             popt, pcov = curve_fit(my_gaussian, arrd, datad,p0=[40,30,3],sigma=err_total)#,sigma=np.sqrt(datad) sigma=np.sqrt(1./wd)**2)
@@ -241,6 +247,10 @@ for f in lfiles:
     wf.append(w)
     w2f.append(w2)
 
+vec_s  = np.array(vec_s)
+vec_os = np.array(vec_os)
+
+np.savetxt('../output/'+str(folder)+'/'+'size.txt',np.array([vec_s,vec_os]).T)
 
 wf  = np.array(wf)
 w2f = np.array(w2f)
