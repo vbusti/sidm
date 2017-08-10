@@ -65,8 +65,6 @@ folder = 'err_w_I_test'
 wf  = []
 w2f = []
 
-vec_s  = []
-vec_os = []
 
 for f in lfiles:
     
@@ -114,15 +112,14 @@ for f in lfiles:
         if(my_dist < my_min):
             my_label = prop.id - 1
             my_min = my_dist
+        
+
 
     mytheta  = props[my_label].orientation.value
-    mysize   = np.int(np.round(r*props[my_label].semimajor_axis_sigma.value*np.cos(mytheta)))
-    vec_s.append(mysize)
-    vec_os.append(a)
-    print('mysize = %d and size = %d'% (mysize,a)) 
-    
+    mysize   = np.int(np.round(r*props[my_label].semimajor_axis_sigma.value))
+   
     mask_obj = np.ones(data.shape,dtype='bool')
-    mask_obj[(segm.data != 0)*(segm.data != my_label)] = 0
+    mask_obj[(segm.data != 0)*(segm.data != props[my_label].id)] = 0
 
     weigth = weight[mask_obj]  
 
@@ -138,7 +135,8 @@ for f in lfiles:
     plt.close()
 
     data4 = rotate(data, np.rad2deg(mytheta))
-    data4 = data4[data4.shape[0]/2 - 30:data4.shape[0]/2 + 30,data4.shape[1]/2 - 30:data4.shape[1]/2 + 30]
+    data4 = data4[data4.shape[0]/2 - 30:data4.shape[0]/2 + 30,data4.shape[1]/2 - 30:data4.shape[1]/2 + 30]   
+
 
     w_rot  = rotate(weight, np.rad2deg(mytheta))
     w      = w_rot[w_rot.shape[0]/2 - 30:w_rot.shape[0]/2 + 30,w_rot.shape[1]/2 - 30:w_rot.shape[1]/2 + 30] 
