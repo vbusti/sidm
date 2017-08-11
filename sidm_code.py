@@ -245,11 +245,6 @@ for f in lfiles:
     wf.append(w)
     w2f.append(w2)
 
-vec_s  = np.array(vec_s)
-vec_os = np.array(vec_os)
-
-np.savetxt('../output/'+str(folder)+'/'+'size.txt',np.array([vec_s,vec_os]).T)
-
 wf  = np.array(wf)
 w2f = np.array(w2f)
 
