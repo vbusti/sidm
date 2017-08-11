@@ -23,6 +23,8 @@ from scipy.stats import norm
 from scipy.optimize import curve_fit
 import random
 
+# general functions
+
 def my_chisq_min(x,y,amp,mean,sigma):
     return np.sum( (y - amp*np.exp(- ((x-mean)**2/(2.*sigma**2))) )**2)/(np.float(len(y))-3.)
     
@@ -51,29 +53,22 @@ def my_bootstrap(x,y,sigma):
             mean_values[acc]    = popt[1]
             acc += 1 
     return np.std(mean_values)
+
+#########################
             
 
-    
+def prepare_data(file):
+    """
+    prepare_data picks a file with the image of the galaxy, detect the central object, rotate it to the major axis, and returns 
+    the data and errors ready to fit a warp curve, along with the maximum distance from the center 
 
-with open("my_files.txt", "r") as ins:
-    lfiles = []
-    for line in ins:
-        lfiles.append(line)
-
-folder = 'err_w_I_test'
-
-wf  = []
-w2f = []
-
-
-for f in lfiles:
-    
-    hdu = fits.open('/home/vinicius/Documents/sidm/data/i_band/'+str(f[:-1]))[0]
+    """
+    hdu = fits.open('/home/vinicius/Documents/sidm/data/i_band/'+str(file[:-1]))[0]
     wcs = WCS(hdu.header)
 
     data = hdu.data
 
-    weight = fits.open('/home/vinicius/Documents/sidm/data/i_band/'+str(f[:-1]))[1].data
+    weight = fits.open('/home/vinicius/Documents/sidm/data/i_band/'+str(file[:-1]))[1].data
 
     sigma_clip = SigmaClip(sigma=3., iters=10)
     bkg_estimator = MedianBackground()
@@ -92,7 +87,7 @@ for f in lfiles:
     fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(8, 8))
     ax1.imshow(data, origin='lower', cmap='Greys_r')
     ax2.imshow(segm, origin='lower', cmap=rand_cmap)
-    plt.savefig('../figs/'+str(folder)+'/'+str(f[:-5])+'fig2.png')
+    plt.savefig('../figs/'+str(folder)+'/'+str(file[:-5])+'fig2.png')
 
 
     props = source_properties(data, segm)
@@ -131,7 +126,7 @@ for f in lfiles:
     for aperture in apertures:
         aperture.plot(color='blue', lw=1.5, alpha=0.5, ax=ax1)
         aperture.plot(color='white', lw=1.5, alpha=1.0, ax=ax2)
-    plt.savefig('../figs/'+str(folder)+'/'+str(f[:-5])+'fig3.png')
+    plt.savefig('../figs/'+str(folder)+'/'+str(file[:-5])+'fig3.png')
     plt.close()
 
     data4 = rotate(data, np.rad2deg(mytheta))
@@ -145,104 +140,138 @@ for f in lfiles:
     plt.imshow(data4, origin='lower', cmap='Greys_r') 
     plt.savefig('../figs/'+str(folder)+'/'+str(f[:-5])+'fig4.png')
 
+    return data4, w, mysize 
 
-    a = data4.shape[1]
-    b = data4.shape[0]
+
+def fit_warp_curve(file,data,weight):
+    """
+    fit_warp_curve picks data and errors to fit the warp curve.
+    file is used only for plotting 
+    It returns the warp curve: (x,y,err_y) and a mask to calculate the warpness
+    """
+    a = data.shape[1]
+    b = data.shape[0]
 
     mymu     = np.zeros(a)
     mysigma  = np.zeros(a)
-    myamp    = np.zeros(a)
     mymask   = np.ones(a,dtype='bool')
-    mypixel  = np.zeros(a)
-    mypixerr = np.zeros(a)
 
     for i in range(a):
     
         g     = models.Gaussian1D(amplitude=90.1,mean=np.float(a)/2.,stddev=3.2)
-        datad = np.array(data4[:,i])
-        wd    = np.array(w[:,i])
+        datad = np.array(data[:,i])
+        wd    = np.array(weight[:,i])
         arrd  = np.array(range(len(datad)))
-        maskd = (wd > 0.) #(datad >= 0)
+        maskd = (wd > 0.) 
         arrd  = arrd[maskd]
         datad = datad[maskd] 
         wd    = wd[maskd]
         err_total = np.sqrt(1./wd)
 
         try:
-            popt, pcov = curve_fit(my_gaussian, arrd, datad,p0=[40,30,3],sigma=err_total)#,sigma=np.sqrt(datad) sigma=np.sqrt(1./wd)**2)
+            popt, pcov = curve_fit(my_gaussian, arrd, datad,p0=[40,30,3],sigma=err_total)
         except:
             mymask[i] = False 
         else:        
-            #print(popt)
-            #print(np.sqrt(np.diag(pcov)))
             mymu[i]    = popt[1]
-            mysigma[i] = my_bootstrap(arrd,datad,err_total)#np.sqrt(np.diag(pcov))[1] 
+            mysigma[i] = my_bootstrap(arrd,datad,err_total) 
     
             plt.figure()
             plt.plot(arrd, my_gaussian(arrd, *popt),label='curve fit')
             plt.scatter(arrd,datad,label='data')
             plt.legend()
-            plt.savefig('../fig_gauss/'+str(folder)+'/'+str(f[:-5])+'fig_'+str(i)+'.png')
+            plt.savefig('../fig_gauss/'+str(folder)+'/'+str(file[:-5])+'fig_'+str(i)+'.png')
             plt.close()
-
     
-
     arr2 = range(a)
     arr2 = np.array(arr2)
 
     arr2 = arr2[mymask]
     mymu = mymu[mymask]
     mysigma = mysigma[mymask]
+    mymup = mymu - np.float(b)/2.
 
     plt.figure()
     plt.xlim(0,60)
     plt.ylim(0,60)     
-    plt.imshow(data4, origin='lower', cmap='Greys_r') 
+    plt.imshow(data, origin='lower', cmap='Greys_r') 
     plt.plot(arr2,mymu,markersize=0.1,lw=1)
-    plt.savefig('../figs/'+str(folder)+'/'+str(f[:-5])+'fig5.png')
+    plt.savefig('../figs/'+str(folder)+'/'+str(file[:-5])+'fig5.png')
     plt.close()
 
     plt.figure()
     plt.xlim(0,60)
     plt.ylim(0,60)
-    plt.imshow(data4, origin='lower', cmap='Greys_r') 
+    plt.imshow(data, origin='lower', cmap='Greys_r') 
     plt.errorbar(arr2,mymu,yerr=mysigma,fmt='o',markersize=0.1,lw=1.0,color='blue')
-    plt.savefig('../figs/'+str(folder)+'/'+str(f[:-5])+'fig6.png')
+    plt.savefig('../figs/'+str(folder)+'/'+str(file[:-5])+'fig6.png')
     plt.close()
 
-    mymup = mymu - np.float(b)/2.
-    
+    np.savetxt('../output/'+str(folder)+'/'+str(file[:-5])+'warp_curve.txt',np.array([arr2,mymup,mysigma]).T)
+    np.savetxt('../output/'+str(folder)+'/'+str(file[:-5])+'mask_warp_curve.txt',np.array([mymask]).T)
 
-    x = np.arange(-a/2,a/2,1)
-    x = x[mymask]
-    
+    return arr2, mymup, mysigma, mymask
 
+def calculate_w1(y,err_y,mask,size_x):
+    """
+    calculate w1= ...
+    """ 
+    x = np.arange(-len(mask)/2,len(mask)/2,1)
+    x = x[mask]
     w = 0.
-    w2 = 0.
 
-    mask1 = (x >= 0)*(x < mysize)
+    mask1 = (x >= 0)*(x < size_x)
     x1 = x[mask1]
-    mymup1 = mymup[mask1]
-    print('x1 = ',x1)
-    print('mymup1 = ',mymup1)
-
-    mask2 = (x >= -mysize)*(x < mysize)
-    x2 = x[mask2]
-    mymup2 = mymup[mask2]
-    print('x2 = ',x2) 
-    print('mymup2 = ',mymup2)
+    y1 = y[mask1]
 
     for i in range(len(x1)):
-        w += 2.*x1[i]*mymup1[i]/((np.float(mysize))**3)
+        w += 2.*x1[i]*y1[i]/((np.float(size_x))**3)
 
-    for i in range(len(x2)):
-        w2 += np.abs(x2[i])*mymup2[i]/((np.float(mysize))**3) 
+    return np.abs(w)
 
-    w = np.abs(w)
-    w2 = np.abs(w2) 
-    print(w,w2)
+def calculate_w2(y,err_y,mask,size_x):
+    """
+    calculate w2= ...
+    """ 
+    x = np.arange(-len(mask)/2,len(mask)/2,1)
+    x = x[mask]
+    w = 0.
 
-    wf.append(w)
+    mask1 = (x >= -size_x)*(x < size_x)
+    x1 = x[mask1]
+    y1 = y[mask1]
+
+    for i in range(len(x1)):
+        w += np.abs(x1[i])*y1[i]/((np.float(size_x))**3) 
+
+    return np.abs(w)
+
+
+       
+
+with open("my_files_temp.txt", "r") as ins:
+    lfiles = []
+    for line in ins:
+        lfiles.append(line)
+
+folder = 'temp'
+
+wf  = []
+w2f = []
+
+for f in lfiles:
+
+    data, weight, size_x = prepare_data(f)
+
+    x,y,err_y,mask = fit_warp_curve(f,data,weight)
+
+    w1 = calculate_w1(y,err_y,mask,size_x)
+
+    w2 = calculate_w2(y,err_y,mask,size_x)
+       
+    print(w1,w2)
+
+    wf.append(w1)
     w2f.append(w2)
 
 wf  = np.array(wf)
