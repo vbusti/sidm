@@ -54,6 +54,23 @@ def my_bootstrap(x,y,sigma):
             acc += 1 
     return np.std(mean_values)
 
+def boot_err_w(x,y,err_y):
+    mean_values = np.zeros(1000)
+    for i in range(1000):
+        x_b    = np.zeros(len(x))
+        y_b    = np.zeros(len(x))
+        err_yb = np.zeros(len(x)) 
+        for i in range(len(x)):
+            aux=random.randint(0,len(x)-1)
+            x_b[i]    = x[aux] 
+            y_b[i]    = y[aux]
+            err_yb[i] = err_y[aux] 
+        w_sum = 0.
+        for i in range(len(x)):
+            w_sum += 2.*x_b[i]*y_b[i]/err_yb[i]**2/((np.float(np.max(x)))**3)
+        mean_values[i] = w_sum/np.sum(1./err_yb**2)
+    return np.std(mean_values)
+
 #########################
             
 
@@ -216,18 +233,21 @@ def calculate_w1(y,err_y,mask,size_x):
     """
     calculate w1= ...
     """ 
-    x = np.arange(-len(mask)/2,len(mask)/2,1)
+    x = np.array(np.arange(-len(mask)/2,len(mask)/2,1))
     x = x[mask]
     w = 0.
+    err_w = 0.
 
-    mask1 = (x >= 0)*(x < size_x)
+    mask1 = (x >= 0)*(x < size_x)  
     x1 = x[mask1]
     y1 = y[mask1]
+    err_y1 = err_y[mask1]
 
     for i in range(len(x1)):
         w += 2.*x1[i]*y1[i]/((np.float(size_x))**3)
+        err_w += (2.*x1[i]*err_y1[i]/((np.float(size_x))**3))**2
 
-    return np.abs(w)
+    return np.abs(w),np.sqrt(err_w)
 
 def calculate_w2(y,err_y,mask,size_x):
     """
@@ -236,57 +256,197 @@ def calculate_w2(y,err_y,mask,size_x):
     x = np.arange(-len(mask)/2,len(mask)/2,1)
     x = x[mask]
     w = 0.
+    err_w = 0.
 
     mask1 = (x >= -size_x)*(x < size_x)
     x1 = x[mask1]
     y1 = y[mask1]
+    err_y1 = err_y[mask1]
 
     for i in range(len(x1)):
         w += np.abs(x1[i])*y1[i]/((np.float(size_x))**3) 
+        err_w += (np.abs(x1[i])*err_y1[i]/((np.float(size_x))**3))**2
 
-    return np.abs(w)
+    return np.abs(w),np.sqrt(err_w)
+
+def calculate_w3(y,err_y,mask,size_x):
+    """
+    calculate w3= ...
+    """ 
+    x = np.array(np.arange(-len(mask)/2,len(mask)/2,1))
+    x = x[mask]
+    w = 0.
+    err_w = 0.
+
+    mask1 = (x >= 0)*(x < size_x)  
+    x1 = x[mask1]
+    y1 = y[mask1]
+    err_y1 = err_y[mask1]
+
+    for i in range(len(x1)):
+        w += 2.*x1[i]*y1[i]/(err_y1[i]**2*(np.float(size_x))**3)
+        err_w += (2.*x1[i]*err_y1[i]/((np.float(size_x))**3))**2
+
+    return np.abs(w)/np.sum(1./err_y1**2),np.sqrt(err_w)
+
+# using sigma-clipping to remove huge error-bars
+
+def calculate_w4(y,err_y,mask,size_x):
+    """
+    calculate w4= ...
+    """ 
+    x = np.array(np.arange(-len(mask)/2,len(mask)/2,1))
+    x = x[mask]
+    w = 0.
+    err_w = 0.
+
+
+    mask1 = (x >= 0)*(x < size_x)*(err_y <= 5)# np.percentile(err_y,90.))  
+    x1 = x[mask1]
+    y1 = y[mask1]
+    err_y1 = err_y[mask1]
+
+    print('x1=',np.max(x1),size_x)
+
+    plt.figure()
+    plt.hist(err_y1,bins=10)
+    plt.savefig('../figs/'+str(folder)+'/temp/'+str(f[:-5])+'erry.png')
+    plt.close()
+
+    
+    for i in range(len(x1)):
+        w += 2.*x1[i]*y1[i]/((np.float(np.max(x1)))**3)
+        err_w += (2.*x1[i]*err_y1[i]/((np.float(np.max(x1)))**3))**2
+
+    return np.abs(w),np.sqrt(err_w)
+
+
+# cutting errors and weighting
+
+def calculate_w5(y,err_y,mask,size_x):
+    """
+    calculate w5= ...
+    """ 
+    x = np.array(np.arange(-len(mask)/2,len(mask)/2,1))
+    x = x[mask]
+    w = 0.
+    err_w = 0.
+
+
+    mask1 = (x >= 0)*(x < size_x)*(err_y <= 5)# np.percentile(err_y,90.))  
+    x1 = x[mask1]
+    y1 = y[mask1]
+    err_y1 = err_y[mask1]
+
+    print('x1=',np.max(x1),size_x)
+
+    
+    for i in range(len(x1)):
+        w += 2.*x1[i]*y1[i]/err_y1[i]**2/((np.float(np.max(x1)))**3)
+        #err_w += (2.*x1[i]*err_y1[i]/((np.float(np.max(x1)))**3))**2
+
+    err_w = boot_err_w(x1,y1,err_y1)
+
+    return np.abs(w)/np.sum(1./err_y1**2),err_w
+
 
 
        
 
-with open("my_files_temp.txt", "r") as ins:
+with open("my_files.txt", "r") as ins:
     lfiles = []
     for line in ins:
         lfiles.append(line)
 
+
 folder = 'temp'
 
-wf  = []
-w2f = []
+wf    = []
+w2f   = []
+errw  = []
+errw2 = []
+w3f   = []
+errw3 = []
+w4f   = []
+errw4 = []
+w5f   = []
+errw5 = []
+fil   = []
+
+
+
 
 for f in lfiles:
 
+    fil.append(f[:-6])
+
     data, weight, size_x = prepare_data(f)
 
-    x,y,err_y,mask = fit_warp_curve(f,data,weight)
+    #x,y,err_y,mask = fit_warp_curve(f,data,weight)
 
-    w1 = calculate_w1(y,err_y,mask,size_x)
+    x,y,err_y = np.loadtxt('../output/'+str(folder)+'/'+str(f[:-5])+'warp_curve.txt',unpack=True)
+    mask = np.loadtxt('../output/'+str(folder)+'/'+str(f[:-5])+'mask_warp_curve.txt')
+    mask = mask.astype(bool)
+    
 
-    w2 = calculate_w2(y,err_y,mask,size_x)
+    w1,err1 = calculate_w1(y,err_y,mask,size_x)
+
+    w2,err2 = calculate_w2(y,err_y,mask,size_x)
+
+    w3,err3 = calculate_w3(y,err_y,mask,size_x)
+
+    w4,err4 = calculate_w4(y,err_y,mask,size_x)
+
+    w5,err5 = calculate_w5(y,err_y,mask,size_x)
        
-    print(w1,w2)
+    print(w1,err1,w2,err2,w3,w4,err4,w5,err5)
 
     wf.append(w1)
     w2f.append(w2)
+    errw.append(err1)
+    errw2.append(err2) 
+    w3f.append(w3)
+    w4f.append(w4)
+    errw4.append(err4)
+    w5f.append(w5)
+    errw5.append(err5)
 
-wf  = np.array(wf)
-w2f = np.array(w2f)
 
-np.savetxt('../output/'+str(folder)+'/'+'w_w2.txt',np.array([wf,w2f]).T)
+fil = np.array(fil)
+
+wf    = np.array(wf)
+w2f   = np.array(w2f)
+errw  = np.array(errw)
+errw2 = np.array(errw2) 
+w3f   = np.array(w3f)
+w4f   = np.array(w4f)
+errw4 = np.array(errw4)
+w5f   = np.array(w5f)
+errw5 = np.array(errw5)
+
+
+#final = np.column_stack((fil,wf,errw,w2f,errw2,w3f,w4f,errw4))
+final = np.column_stack((fil,wf,errw,w4f,errw4,w5f,errw5))
+np.savetxt('../output/'+str(folder)+'/'+'w_w2_err.txt',final,delimiter=" ",fmt="%s")
+
+
+#np.savetxt('../output/'+str(folder)+'/'+'w_w2_err.txt',np.array([fil,wf,errw,w2f,errw2]).T)
+
 
 plt.figure()
-plt.hist(wf[wf<1])
-plt.savefig('../figs/'+str(folder)+'/'+'histw.png')
+plt.hist(w4f[errw4 < 0.3])
+plt.savefig('../figs/'+str(folder)+'/'+'histw_err_lt_5.png')
 
+plt.figure()
+plt.hist(errw4[errw4 < 0.3])
+plt.savefig('../figs/'+str(folder)+'/'+'hist_errw_lt_5.png')
+
+
+'''
 plt.figure()
 plt.hist(w2f[w2f<1])
 plt.savefig('../figs/'+str(folder)+'/'+'histw2.png')
-
+'''
 
 
 
