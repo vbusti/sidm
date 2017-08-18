@@ -22,6 +22,7 @@ from scipy.ndimage import rotate
 from scipy.stats import norm
 from scipy.optimize import curve_fit
 import random
+from gapp import dgp
 
 # general functions
 
@@ -80,12 +81,12 @@ def prepare_data(file):
     the data and errors ready to fit a warp curve, along with the maximum distance from the center 
 
     """
-    hdu = fits.open('/home/vinicius/Documents/sidm/data/i_band/'+str(file[:-1]))[0]
+    hdu = fits.open('/home/vinicius/Documents/sidm/data/z_010_015_snr_100_150_radius_1_15/'+str(file[:-1]))[0]
     wcs = WCS(hdu.header)
 
     data = hdu.data
 
-    weight = fits.open('/home/vinicius/Documents/sidm/data/i_band/'+str(file[:-1]))[1].data
+    weight = fits.open('/home/vinicius/Documents/sidm/data/z_010_015_snr_100_150_radius_1_15/'+str(file[:-1]))[1].data
 
     sigma_clip = SigmaClip(sigma=3., iters=10)
     bkg_estimator = MedianBackground()
@@ -116,6 +117,7 @@ def prepare_data(file):
     apertures = []
     for prop in props:
         position = (prop.xcentroid.value, prop.ycentroid.value)
+        print(position) 
         a = prop.semimajor_axis_sigma.value * r
         b = prop.semiminor_axis_sigma.value * r
         theta = prop.orientation.value
@@ -184,12 +186,16 @@ def fit_warp_curve(file,data,weight):
         datad = datad[maskd] 
         wd    = wd[maskd]
         err_total = np.sqrt(1./wd)
+        print(arrd)
+        print(datad)
+        print(wd)
 
         try:
             popt, pcov = curve_fit(my_gaussian, arrd, datad,p0=[40,30,3],sigma=err_total)
         except:
             mymask[i] = False 
-        else:        
+        else:    
+            print("I am here")    
             mymu[i]    = popt[1]
             mysigma[i] = my_bootstrap(arrd,datad,err_total) 
     
@@ -209,16 +215,16 @@ def fit_warp_curve(file,data,weight):
     mymup = mymu - np.float(b)/2.
 
     plt.figure()
-    plt.xlim(0,60)
-    plt.ylim(0,60)     
+    plt.xlim(10,50)
+    plt.ylim(20,40)     
     plt.imshow(data, origin='lower', cmap='Greys_r') 
     plt.plot(arr2,mymu,markersize=0.1,lw=1)
     plt.savefig('../figs/'+str(folder)+'/'+str(file[:-5])+'fig5.png')
     plt.close()
 
     plt.figure()
-    plt.xlim(0,60)
-    plt.ylim(0,60)
+    plt.xlim(10,50)
+    plt.ylim(20,40) 
     plt.imshow(data, origin='lower', cmap='Greys_r') 
     plt.errorbar(arr2,mymu,yerr=mysigma,fmt='o',markersize=0.1,lw=1.0,color='blue')
     plt.savefig('../figs/'+str(folder)+'/'+str(file[:-5])+'fig6.png')
@@ -350,16 +356,58 @@ def calculate_w5(y,err_y,mask,size_x):
     return np.abs(w)/np.sum(1./err_y1**2),err_w
 
 
+def calculate_w_gp(y,err_y,mask,size_x):
+    """
+    calculate w_gp= ...
+    """ 
+    x = np.array(np.arange(-len(mask)/2,len(mask)/2,1))
+    x = x[mask]
+    w = 0.
+    err_w = 0.
+
+
+    mask1 = (x >= 0)*(x < size_x)#*(err_y <= 5)# np.percentile(err_y,90.))  
+    x1 = x[mask1]
+    y1 = y[mask1]
+    err_y1 = err_y[mask1]
+
+    x1 = np.array(x1)
+    y1 = np.array(range(len(x1)))#np.array(y1)
+    err_y1 = np.ones(len(x1))#np.array(err_y1)
+
+    print('x_gp=',len(x1),len(y1),len(err_y1))
+
+    # nstar points of the function will be reconstructed 
+    # between xmin and xmax
+    xmin = 0.0
+    xmax = len(x1)
+    nstar = len(x1) + 1
+
+    # initial values of the hyperparameters
+    initheta = [10.5, 10.5]
+
+    # initialization of the Gaussian Process
+    g = dgp.DGaussianProcess(x1, y1, err_y1, cXstar=(xmin, xmax, nstar))
+
+    # training of the hyperparameters and reconstruction of the function
+    #(rec, theta) = g.gp(theta=initheta)
+
+    '''
+    for i in range(len(x1)):
+        w += 2.*rec[0,i]*rec[1,i]/((np.float(np.max(x1)))**3)
+        err_w += (2.*rec[0,i]*rec[2,i]/((np.float(np.max(x1)))**3))**2
+    '''
+    return 0,0#np.abs(w),err_w
 
        
 
-with open("my_files.txt", "r") as ins:
+with open("/home/vinicius/Documents/sidm/data/z_010_015_snr_100_150_radius_1_15/file4.txt", "r") as ins:
     lfiles = []
     for line in ins:
         lfiles.append(line)
 
 
-folder = 'temp'
+folder = 'file_4'
 
 wf    = []
 w2f   = []
@@ -371,6 +419,8 @@ w4f   = []
 errw4 = []
 w5f   = []
 errw5 = []
+w6f   = []
+errw6 = []
 fil   = []
 
 
@@ -382,51 +432,58 @@ for f in lfiles:
 
     data, weight, size_x = prepare_data(f)
 
-    #x,y,err_y,mask = fit_warp_curve(f,data,weight)
+    x,y,err_y,mask = fit_warp_curve(f,data,weight)
 
-    x,y,err_y = np.loadtxt('../output/'+str(folder)+'/'+str(f[:-5])+'warp_curve.txt',unpack=True)
-    mask = np.loadtxt('../output/'+str(folder)+'/'+str(f[:-5])+'mask_warp_curve.txt')
-    mask = mask.astype(bool)
+
+    #x,y,err_y = np.loadtxt('../output/'+str(folder)+'/'+str(f[:-5])+'warp_curve.txt',unpack=True)
+    #mask = np.loadtxt('../output/'+str(folder)+'/'+str(f[:-5])+'mask_warp_curve.txt')
+    #mask = mask.astype(bool)
     
 
-    w1,err1 = calculate_w1(y,err_y,mask,size_x)
+    #w1,err1 = calculate_w1(y,err_y,mask,size_x)
 
-    w2,err2 = calculate_w2(y,err_y,mask,size_x)
+    #w2,err2 = calculate_w2(y,err_y,mask,size_x)
 
-    w3,err3 = calculate_w3(y,err_y,mask,size_x)
+    #w3,err3 = calculate_w3(y,err_y,mask,size_x)
 
     w4,err4 = calculate_w4(y,err_y,mask,size_x)
 
     w5,err5 = calculate_w5(y,err_y,mask,size_x)
-       
-    print(w1,err1,w2,err2,w3,w4,err4,w5,err5)
 
-    wf.append(w1)
-    w2f.append(w2)
-    errw.append(err1)
-    errw2.append(err2) 
-    w3f.append(w3)
+    #w6,err6 = calculate_w_gp(y,err_y,mask,size_x)
+       
+    #print(w1,err1,w2,err2,w3,w4,err4,w5,err5)#,w6,err6)
+
+    #wf.append(w1)
+    #w2f.append(w2)
+    #errw.append(err1)
+    #errw2.append(err2) 
+    #w3f.append(w3)
     w4f.append(w4)
     errw4.append(err4)
     w5f.append(w5)
     errw5.append(err5)
+    #w6f.append(w6)
+    #errw6.append(err6)
 
 
 fil = np.array(fil)
 
-wf    = np.array(wf)
-w2f   = np.array(w2f)
-errw  = np.array(errw)
-errw2 = np.array(errw2) 
-w3f   = np.array(w3f)
+#wf    = np.array(wf)
+#w2f   = np.array(w2f)
+#errw  = np.array(errw)
+#errw2 = np.array(errw2) 
+#w3f   = np.array(w3f)
 w4f   = np.array(w4f)
 errw4 = np.array(errw4)
 w5f   = np.array(w5f)
 errw5 = np.array(errw5)
+#w6f   = np.array(w6f)
+#errw6 = np.array(errw6)
 
 
 #final = np.column_stack((fil,wf,errw,w2f,errw2,w3f,w4f,errw4))
-final = np.column_stack((fil,wf,errw,w4f,errw4,w5f,errw5))
+final = np.column_stack((fil,w4f,errw4,w5f,errw5))#,w6f,errw6))
 np.savetxt('../output/'+str(folder)+'/'+'w_w2_err.txt',final,delimiter=" ",fmt="%s")
 
 
@@ -434,19 +491,31 @@ np.savetxt('../output/'+str(folder)+'/'+'w_w2_err.txt',final,delimiter=" ",fmt="
 
 
 plt.figure()
-plt.hist(w4f[errw4 < 0.3])
-plt.savefig('../figs/'+str(folder)+'/'+'histw_err_lt_5.png')
+plt.hist(w5f)
+plt.savefig('../figs/'+str(folder)+'/'+'histw5_err_lt_5.png')
 
 plt.figure()
-plt.hist(errw4[errw4 < 0.3])
-plt.savefig('../figs/'+str(folder)+'/'+'hist_errw_lt_5.png')
+plt.hist(errw5)
+plt.savefig('../figs/'+str(folder)+'/'+'hist_errw5_lt_5.png')
 
-
-'''
 plt.figure()
-plt.hist(w2f[w2f<1])
-plt.savefig('../figs/'+str(folder)+'/'+'histw2.png')
-'''
+plt.hist(errw5/w5f)
+plt.savefig('../figs/'+str(folder)+'/'+'ratio_hist_w5_lt_5.png')
+
+
+plt.figure()
+plt.hist(w4f)
+plt.savefig('../figs/'+str(folder)+'/'+'histw4_err_lt_5.png')
+
+plt.figure()
+plt.hist(errw4)
+plt.savefig('../figs/'+str(folder)+'/'+'hist_errw4_lt_5.png')
+
+plt.figure()
+plt.hist(errw4/w4f)
+plt.savefig('../figs/'+str(folder)+'/'+'ratio_hist_w4_lt_5.png')
+
+
 
 
 
