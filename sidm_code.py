@@ -413,124 +413,116 @@ class Warp_Strength:
 
 
 
-
+if __name__=="__main__":
        
 
-with open("/home/vinicius/Documents/sidm/data/z_010_015_snr_100_150_radius_1_15/file4.txt", "r") as ins:
-    lfiles = []
-    for line in ins:
-        lfiles.append(line)
+    with open("/home/vinicius/Documents/sidm/data/z_010_015_snr_100_150_radius_1_15/file4.txt", "r") as ins:
+        lfiles = []
+        for line in ins:
+            lfiles.append(line)
 
 
-folder = 'file_4'
+    folder = 'file_4'
 
-wf    = []
-w2f   = []
-errw  = []
-errw2 = []
-w3f   = []
-errw3 = []
-w4f   = []
-errw4 = []
-w5f   = []
-errw5 = []
-w6f   = []
-errw6 = []
-fil   = []
+    wf    = []
+    w2f   = []
+    errw  = []
+    errw2 = []
+    w3f   = []
+    errw3 = []
+    w4f   = []
+    errw4 = []
+    w5f   = []
+    errw5 = []
+    w6f   = []
+    errw6 = []
+    fil   = []
 
+    for f in lfiles:
 
+        fil.append(f[:-6])
 
+        data, weight, size_x = prepare_data(f)
 
-for f in lfiles:
+        #x,y,err_y,mask = fit_warp_curve(f,data,weight)
 
-    fil.append(f[:-6])
+        x,y,err_y = np.loadtxt('../output/'+str(folder)+'/'+str(f[:-5])+'warp_curve.txt',unpack=True)
+        mask = np.loadtxt('../output/'+str(folder)+'/'+str(f[:-5])+'mask_warp_curve.txt')
+        mask = mask.astype(bool)
 
-    data, weight, size_x = prepare_data(f)
-
-    #x,y,err_y,mask = fit_warp_curve(f,data,weight)
-
-
-    x,y,err_y = np.loadtxt('../output/'+str(folder)+'/'+str(f[:-5])+'warp_curve.txt',unpack=True)
-    mask = np.loadtxt('../output/'+str(folder)+'/'+str(f[:-5])+'mask_warp_curve.txt')
-    mask = mask.astype(bool)
-
-    w = Warp_Strength(y,err_y,mask,size_x)
+        w = Warp_Strength(y,err_y,mask,size_x)
     
+        #w1,err1 = calculate_w1(y,err_y,mask,size_x)
 
-    #w1,err1 = calculate_w1(y,err_y,mask,size_x)
+        #w2,err2 = calculate_w2(y,err_y,mask,size_x)
 
-    #w2,err2 = calculate_w2(y,err_y,mask,size_x)
+        #w3,err3 = calculate_w3(y,err_y,mask,size_x)
 
-    #w3,err3 = calculate_w3(y,err_y,mask,size_x)
+        w4,err4 = w.calculate_w4()
 
-    w4,err4 = w.calculate_w4()
+        w5,err5 = w.calculate_w5()
 
-    w5,err5 = w.calculate_w5()
-
-    #w6,err6 = calculate_w_gp(y,err_y,mask,size_x)
+        #w6,err6 = calculate_w_gp(y,err_y,mask,size_x)
        
-    #print(w1,err1,w2,err2,w3,w4,err4,w5,err5)#,w6,err6)
+        #print(w1,err1,w2,err2,w3,w4,err4,w5,err5)#,w6,err6)
 
-    #wf.append(w1)
-    #w2f.append(w2)
-    #errw.append(err1)
-    #errw2.append(err2) 
-    #w3f.append(w3)
-    w4f.append(w4)
-    errw4.append(err4)
-    w5f.append(w5)
-    errw5.append(err5)
-    #w6f.append(w6)
-    #errw6.append(err6)
-
-
-fil = np.array(fil)
-
-#wf    = np.array(wf)
-#w2f   = np.array(w2f)
-#errw  = np.array(errw)
-#errw2 = np.array(errw2) 
-#w3f   = np.array(w3f)
-w4f   = np.array(w4f)
-errw4 = np.array(errw4)
-w5f   = np.array(w5f)
-errw5 = np.array(errw5)
-#w6f   = np.array(w6f)
-#errw6 = np.array(errw6)
+        #wf.append(w1)
+        #w2f.append(w2)
+        #errw.append(err1)
+        #errw2.append(err2) 
+        #w3f.append(w3)
+        w4f.append(w4)
+        errw4.append(err4)
+        w5f.append(w5)
+        errw5.append(err5)
+        #w6f.append(w6)
+        #errw6.append(err6)
 
 
-#final = np.column_stack((fil,wf,errw,w2f,errw2,w3f,w4f,errw4))
-final = np.column_stack((fil,w4f,errw4,w5f,errw5))#,w6f,errw6))
-np.savetxt('../output/'+str(folder)+'/'+'w_w2_err.txt',final,delimiter=" ",fmt="%s")
+    fil = np.array(fil)
+
+    #wf    = np.array(wf)
+    #w2f   = np.array(w2f)
+    #errw  = np.array(errw)
+    #errw2 = np.array(errw2) 
+    #w3f   = np.array(w3f)
+    w4f   = np.array(w4f)
+    errw4 = np.array(errw4)
+    w5f   = np.array(w5f)
+    errw5 = np.array(errw5)
+    #w6f   = np.array(w6f)
+    #errw6 = np.array(errw6)
 
 
-#np.savetxt('../output/'+str(folder)+'/'+'w_w2_err.txt',np.array([fil,wf,errw,w2f,errw2]).T)
+    #final = np.column_stack((fil,wf,errw,w2f,errw2,w3f,w4f,errw4))
+    final = np.column_stack((fil,w4f,errw4,w5f,errw5))#,w6f,errw6))
+    np.savetxt('../output/'+str(folder)+'/'+'w_w2_err.txt',final,delimiter=" ",fmt="%s")
 
+    #np.savetxt('../output/'+str(folder)+'/'+'w_w2_err.txt',np.array([fil,wf,errw,w2f,errw2]).T)
 
-plt.figure()
-plt.hist(w5f)
-plt.savefig('../figs/'+str(folder)+'/'+'histw5_err_lt_5.png')
+    plt.figure()
+    plt.hist(w5f)
+    plt.savefig('../figs/'+str(folder)+'/'+'histw5_err_lt_5.png')
 
-plt.figure()
-plt.hist(errw5)
-plt.savefig('../figs/'+str(folder)+'/'+'hist_errw5_lt_5.png')
+    plt.figure()
+    plt.hist(errw5)
+    plt.savefig('../figs/'+str(folder)+'/'+'hist_errw5_lt_5.png')
 
-plt.figure()
-plt.hist(errw5/w5f)
-plt.savefig('../figs/'+str(folder)+'/'+'ratio_hist_w5_lt_5.png')
+    plt.figure()
+    plt.hist(errw5/w5f)
+    plt.savefig('../figs/'+str(folder)+'/'+'ratio_hist_w5_lt_5.png')
 
+    plt.figure()
+    plt.hist(w4f)
+    plt.savefig('../figs/'+str(folder)+'/'+'histw4_err_lt_5.png')
 
-plt.figure()
-plt.hist(w4f)
-plt.savefig('../figs/'+str(folder)+'/'+'histw4_err_lt_5.png')
+    plt.figure()
+    plt.hist(errw4)
+    plt.savefig('../figs/'+str(folder)+'/'+'hist_errw4_lt_5.png')
 
-plt.figure()
-plt.hist(errw4)
-plt.savefig('../figs/'+str(folder)+'/'+'hist_errw4_lt_5.png')
-
-plt.figure()
-plt.hist(errw4/w4f)
-plt.savefig('../figs/'+str(folder)+'/'+'ratio_hist_w4_lt_5.png')
+    plt.figure()
+    plt.hist(errw4/w4f)
+    plt.savefig('../figs/'+str(folder)+'/'+'ratio_hist_w4_lt_5.png')
 
 
 
