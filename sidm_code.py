@@ -194,8 +194,7 @@ def fit_warp_curve(file,data,weight):
             popt, pcov = curve_fit(my_gaussian, arrd, datad,p0=[40,30,3],sigma=err_total)
         except:
             mymask[i] = False 
-        else:    
-            print("I am here")    
+        else:        
             mymu[i]    = popt[1]
             mysigma[i] = my_bootstrap(arrd,datad,err_total) 
     
@@ -235,169 +234,185 @@ def fit_warp_curve(file,data,weight):
 
     return arr2, mymup, mysigma, mymask
 
-def calculate_w1(y,err_y,mask,size_x):
-    """
-    calculate w1= ...
-    """ 
-    x = np.array(np.arange(-len(mask)/2,len(mask)/2,1))
-    x = x[mask]
-    w = 0.
-    err_w = 0.
+class Warp_Strength:
+    "It calculates the warp strengh using different definitions"
+    def __init__(self,y,err_y,mask,size_x):
+        self.y      = y
+        self.err_y  = err_y
+        self.mask   = mask
+        self.size_x = size_x
 
-    mask1 = (x >= 0)*(x < size_x)  
-    x1 = x[mask1]
-    y1 = y[mask1]
-    err_y1 = err_y[mask1]
+    def w1(self): 
+        """
+        calculate w1= ...
+        """ 
+        y, err_y, mask, size_x = self.y, self.err_y, self.mask, self.size_x
+        x = np.array(np.arange(-len(mask)/2,len(mask)/2,1))
+        x = x[mask]
+        w = 0.
+        err_w = 0.
 
-    for i in range(len(x1)):
-        w += 2.*x1[i]*y1[i]/((np.float(size_x))**3)
-        err_w += (2.*x1[i]*err_y1[i]/((np.float(size_x))**3))**2
+        mask1 = (x >= 0)*(x < size_x)  
+        x1 = x[mask1]
+        y1 = y[mask1]
+        err_y1 = err_y[mask1]
 
-    return np.abs(w),np.sqrt(err_w)
+        for i in range(len(x1)):
+            w += 2.*x1[i]*y1[i]/((np.float(size_x))**3)
+            err_w += (2.*x1[i]*err_y1[i]/((np.float(size_x))**3))**2
 
-def calculate_w2(y,err_y,mask,size_x):
-    """
-    calculate w2= ...
-    """ 
-    x = np.arange(-len(mask)/2,len(mask)/2,1)
-    x = x[mask]
-    w = 0.
-    err_w = 0.
+        return np.abs(w),np.sqrt(err_w)
 
-    mask1 = (x >= -size_x)*(x < size_x)
-    x1 = x[mask1]
-    y1 = y[mask1]
-    err_y1 = err_y[mask1]
+    def calculate_w2(self):
+        """
+        calculate w2= ...
+        """ 
+        y, err_y, mask, size_x = self.y, self.err_y, self.mask, self.size_x
+        x = np.arange(-len(mask)/2,len(mask)/2,1)
+        x = x[mask]
+        w = 0.
+        err_w = 0.
 
-    for i in range(len(x1)):
-        w += np.abs(x1[i])*y1[i]/((np.float(size_x))**3) 
-        err_w += (np.abs(x1[i])*err_y1[i]/((np.float(size_x))**3))**2
+        mask1 = (x >= -size_x)*(x < size_x)
+        x1 = x[mask1]
+        y1 = y[mask1]
+        err_y1 = err_y[mask1]
 
-    return np.abs(w),np.sqrt(err_w)
+        for i in range(len(x1)):
+            w += np.abs(x1[i])*y1[i]/((np.float(size_x))**3) 
+            err_w += (np.abs(x1[i])*err_y1[i]/((np.float(size_x))**3))**2
 
-def calculate_w3(y,err_y,mask,size_x):
-    """
-    calculate w3= ...
-    """ 
-    x = np.array(np.arange(-len(mask)/2,len(mask)/2,1))
-    x = x[mask]
-    w = 0.
-    err_w = 0.
+        return np.abs(w),np.sqrt(err_w)
 
-    mask1 = (x >= 0)*(x < size_x)  
-    x1 = x[mask1]
-    y1 = y[mask1]
-    err_y1 = err_y[mask1]
+    def calculate_w3(self):
+        """
+        calculate w3= ...
+        """
+        y, err_y, mask, size_x = self.y, self.err_y, self.mask, self.size_x 
+        x = np.array(np.arange(-len(mask)/2,len(mask)/2,1))
+        x = x[mask]
+        w = 0.
+        err_w = 0.
 
-    for i in range(len(x1)):
-        w += 2.*x1[i]*y1[i]/(err_y1[i]**2*(np.float(size_x))**3)
-        err_w += (2.*x1[i]*err_y1[i]/((np.float(size_x))**3))**2
+        mask1 = (x >= 0)*(x < size_x)  
+        x1 = x[mask1]
+        y1 = y[mask1]
+        err_y1 = err_y[mask1]
 
-    return np.abs(w)/np.sum(1./err_y1**2),np.sqrt(err_w)
+        for i in range(len(x1)):
+            w += 2.*x1[i]*y1[i]/(err_y1[i]**2*(np.float(size_x))**3)
+            err_w += (2.*x1[i]*err_y1[i]/((np.float(size_x))**3))**2
 
-# using sigma-clipping to remove huge error-bars
+        return np.abs(w)/np.sum(1./err_y1**2),np.sqrt(err_w)
 
-def calculate_w4(y,err_y,mask,size_x):
-    """
-    calculate w4= ...
-    """ 
-    x = np.array(np.arange(-len(mask)/2,len(mask)/2,1))
-    x = x[mask]
-    w = 0.
-    err_w = 0.
+    # using sigma-clipping to remove huge error-bars
 
-
-    mask1 = (x >= 0)*(x < size_x)*(err_y <= 5)# np.percentile(err_y,90.))  
-    x1 = x[mask1]
-    y1 = y[mask1]
-    err_y1 = err_y[mask1]
-
-    print('x1=',np.max(x1),size_x)
-
-    plt.figure()
-    plt.hist(err_y1,bins=10)
-    plt.savefig('../figs/'+str(folder)+'/temp/'+str(f[:-5])+'erry.png')
-    plt.close()
-
-    
-    for i in range(len(x1)):
-        w += 2.*x1[i]*y1[i]/((np.float(np.max(x1)))**3)
-        err_w += (2.*x1[i]*err_y1[i]/((np.float(np.max(x1)))**3))**2
-
-    return np.abs(w),np.sqrt(err_w)
+    def calculate_w4(self):
+        """
+        calculate w4= ...
+        """
+        y, err_y, mask, size_x = self.y, self.err_y, self.mask, self.size_x 
+        x = np.array(np.arange(-len(mask)/2,len(mask)/2,1))
+        x = x[mask]
+        w = 0.
+        err_w = 0.
 
 
-# cutting errors and weighting
+        mask1 = (x >= 0)*(x < size_x)*(err_y <= 5)# np.percentile(err_y,90.))  
+        x1 = x[mask1]
+        y1 = y[mask1]
+        err_y1 = err_y[mask1]
 
-def calculate_w5(y,err_y,mask,size_x):
-    """
-    calculate w5= ...
-    """ 
-    x = np.array(np.arange(-len(mask)/2,len(mask)/2,1))
-    x = x[mask]
-    w = 0.
-    err_w = 0.
+        print('x1=',np.max(x1),size_x)
 
-
-    mask1 = (x >= 0)*(x < size_x)*(err_y <= 5)# np.percentile(err_y,90.))  
-    x1 = x[mask1]
-    y1 = y[mask1]
-    err_y1 = err_y[mask1]
-
-    print('x1=',np.max(x1),size_x)
+        plt.figure()
+        plt.hist(err_y1,bins=10)
+        plt.savefig('../figs/'+str(folder)+'/temp/'+str(f[:-5])+'erry.png')
+        plt.close()
 
     
-    for i in range(len(x1)):
-        w += 2.*x1[i]*y1[i]/err_y1[i]**2/((np.float(np.max(x1)))**3)
-        #err_w += (2.*x1[i]*err_y1[i]/((np.float(np.max(x1)))**3))**2
+        for i in range(len(x1)):
+            w += 2.*x1[i]*y1[i]/((np.float(np.max(x1)))**3)
+            err_w += (2.*x1[i]*err_y1[i]/((np.float(np.max(x1)))**3))**2
 
-    err_w = boot_err_w(x1,y1,err_y1)
-
-    return np.abs(w)/np.sum(1./err_y1**2),err_w
+        return np.abs(w),np.sqrt(err_w)
 
 
-def calculate_w_gp(y,err_y,mask,size_x):
-    """
-    calculate w_gp= ...
-    """ 
-    x = np.array(np.arange(-len(mask)/2,len(mask)/2,1))
-    x = x[mask]
-    w = 0.
-    err_w = 0.
+    # cutting errors and weighting
+
+    def calculate_w5(self):
+        """
+        calculate w5= ...
+        """
+        y, err_y, mask, size_x = self.y, self.err_y, self.mask, self.size_x 
+        x = np.array(np.arange(-len(mask)/2,len(mask)/2,1))
+        x = x[mask]
+        w = 0.
+        err_w = 0.
 
 
-    mask1 = (x >= 0)*(x < size_x)#*(err_y <= 5)# np.percentile(err_y,90.))  
-    x1 = x[mask1]
-    y1 = y[mask1]
-    err_y1 = err_y[mask1]
+        mask1 = (x >= 0)*(x < size_x)*(err_y <= 5)# np.percentile(err_y,90.))  
+        x1 = x[mask1]
+        y1 = y[mask1]
+        err_y1 = err_y[mask1]
 
-    x1 = np.array(x1)
-    y1 = np.array(range(len(x1)))#np.array(y1)
-    err_y1 = np.ones(len(x1))#np.array(err_y1)
+        print('x1=',np.max(x1),size_x)
 
-    print('x_gp=',len(x1),len(y1),len(err_y1))
+    
+        for i in range(len(x1)):
+            w += 2.*x1[i]*y1[i]/err_y1[i]**2/((np.float(np.max(x1)))**3)
+            #err_w += (2.*x1[i]*err_y1[i]/((np.float(np.max(x1)))**3))**2
 
-    # nstar points of the function will be reconstructed 
-    # between xmin and xmax
-    xmin = 0.0
-    xmax = len(x1)
-    nstar = len(x1) + 1
+        err_w = boot_err_w(x1,y1,err_y1)
 
-    # initial values of the hyperparameters
-    initheta = [10.5, 10.5]
+        return np.abs(w)/np.sum(1./err_y1**2),err_w
 
-    # initialization of the Gaussian Process
-    g = dgp.DGaussianProcess(x1, y1, err_y1, cXstar=(xmin, xmax, nstar))
 
-    # training of the hyperparameters and reconstruction of the function
-    #(rec, theta) = g.gp(theta=initheta)
+    def calculate_w_gp(self):
+        """
+        calculate w_gp= ...
+        """
+        y, err_y, mask, size_x = self.y, self.err_y, self.mask, self.size_x 
+        x = np.array(np.arange(-len(mask)/2,len(mask)/2,1))
+        x = x[mask]
+        w = 0.
+        err_w = 0.
 
-    '''
-    for i in range(len(x1)):
-        w += 2.*rec[0,i]*rec[1,i]/((np.float(np.max(x1)))**3)
-        err_w += (2.*rec[0,i]*rec[2,i]/((np.float(np.max(x1)))**3))**2
-    '''
-    return 0,0#np.abs(w),err_w
+        mask1 = (x >= 0)*(x < size_x)#*(err_y <= 5)# np.percentile(err_y,90.))  
+        x1 = x[mask1]
+        y1 = y[mask1]
+        err_y1 = err_y[mask1]
+
+        x1 = np.array(x1)
+        y1 = np.array(range(len(x1)))#np.array(y1)
+        err_y1 = np.ones(len(x1))#np.array(err_y1)
+
+        print('x_gp=',len(x1),len(y1),len(err_y1))
+
+        # nstar points of the function will be reconstructed 
+        # between xmin and xmax
+        xmin = 0.0
+        xmax = len(x1)
+        nstar = len(x1) + 1
+
+        # initial values of the hyperparameters
+        initheta = [10.5, 10.5]
+
+        # initialization of the Gaussian Process
+        g = dgp.DGaussianProcess(x1, y1, err_y1, cXstar=(xmin, xmax, nstar))
+
+        # training of the hyperparameters and reconstruction of the function
+        #(rec, theta) = g.gp(theta=initheta)
+
+        '''
+        for i in range(len(x1)):
+            w += 2.*rec[0,i]*rec[1,i]/((np.float(np.max(x1)))**3)
+            err_w += (2.*rec[0,i]*rec[2,i]/((np.float(np.max(x1)))**3))**2
+        '''
+        return 0,0#np.abs(w),err_w
+
+
+
 
        
 
@@ -432,12 +447,14 @@ for f in lfiles:
 
     data, weight, size_x = prepare_data(f)
 
-    x,y,err_y,mask = fit_warp_curve(f,data,weight)
+    #x,y,err_y,mask = fit_warp_curve(f,data,weight)
 
 
-    #x,y,err_y = np.loadtxt('../output/'+str(folder)+'/'+str(f[:-5])+'warp_curve.txt',unpack=True)
-    #mask = np.loadtxt('../output/'+str(folder)+'/'+str(f[:-5])+'mask_warp_curve.txt')
-    #mask = mask.astype(bool)
+    x,y,err_y = np.loadtxt('../output/'+str(folder)+'/'+str(f[:-5])+'warp_curve.txt',unpack=True)
+    mask = np.loadtxt('../output/'+str(folder)+'/'+str(f[:-5])+'mask_warp_curve.txt')
+    mask = mask.astype(bool)
+
+    w = Warp_Strength(y,err_y,mask,size_x)
     
 
     #w1,err1 = calculate_w1(y,err_y,mask,size_x)
@@ -446,9 +463,9 @@ for f in lfiles:
 
     #w3,err3 = calculate_w3(y,err_y,mask,size_x)
 
-    w4,err4 = calculate_w4(y,err_y,mask,size_x)
+    w4,err4 = w.calculate_w4()
 
-    w5,err5 = calculate_w5(y,err_y,mask,size_x)
+    w5,err5 = w.calculate_w5()
 
     #w6,err6 = calculate_w_gp(y,err_y,mask,size_x)
        
