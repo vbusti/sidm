@@ -34,8 +34,8 @@ def my_gaussian(x,amp,mean,sigma):
 
 def my_bootstrap(x,y,sigma):
     acc=0
-    mean_values = np.zeros(1000)
-    while(acc < 1000):
+    mean_values = np.zeros(500)
+    while(acc < 500):
         try:
             x_b    = np.zeros(len(x))
             y_b    = np.zeros(len(x))
@@ -75,18 +75,18 @@ def boot_err_w(x,y,err_y):
 #########################
             
 
-def prepare_data(file):
+def prepare_data(file,data_dir):
     """
     prepare_data picks a file with the image of the galaxy, detect the central object, rotate it to the major axis, and returns 
     the data and errors ready to fit a warp curve, along with the maximum distance from the center 
 
     """
-    hdu = fits.open('/home/vinicius/Documents/sidm/data/z_010_015_snr_100_150_radius_1_15/'+str(file[:-1]))[0]
+    hdu = fits.open(data_dir+'/'+str(file[:-1]))[0]
     wcs = WCS(hdu.header)
 
     data = hdu.data
 
-    weight = fits.open('/home/vinicius/Documents/sidm/data/z_010_015_snr_100_150_radius_1_15/'+str(file[:-1]))[1].data
+    weight = fits.open(data_dir+'/'+str(file[:-1]))[1].data
 
     sigma_clip = SigmaClip(sigma=3., iters=10)
     bkg_estimator = MedianBackground()
@@ -411,38 +411,103 @@ class Warp_Strength:
         '''
         return 0,0#np.abs(w),err_w
 
+    def calculate_wr(self):
+        """
+        calculate w5= ...
+        """
+        y, err_y, mask, size_x = self.y, self.err_y, self.mask, self.size_x 
+        x = np.array(np.arange(-len(mask)/2,len(mask)/2,1))
+        x = x[mask]
+        w = 0.
+        err_w = 0.
+
+        mask1 = (x >= 0)*(x < size_x)*(err_y <= 5)  
+        x1 = x[mask1]
+        y1 = y[mask1]
+        err_y1 = err_y[mask1]
+    
+        for i in range(len(x1)):
+            w += np.abs(x1[i])*y1[i]/err_y1[i]**2/((np.float(np.max(np.abs(x1))))**3)
+
+        err_w = boot_err_w(x1,y1,err_y1)
+
+        return w/np.sum(1./err_y1**2),np.abs(w)/np.sum(1./err_y1**2),err_w
+
+
+    def calculate_wl(self):
+        """
+        calculate wl= ...
+        """
+        y, err_y, mask, size_x = self.y, self.err_y, self.mask, self.size_x 
+        x = np.array(np.arange(-len(mask)/2,len(mask)/2,1))
+        x = x[mask]
+        w = 0.
+        err_w = 0.
+
+        mask1 = (x >= -size_x)*(x < 0)*(err_y <= 5)  
+        x1 = x[mask1]
+        y1 = y[mask1]
+        err_y1 = err_y[mask1]
+    
+        for i in range(len(x1)):
+            w += np.abs(x1[i])*y1[i]/err_y1[i]**2/((np.float(np.max(np.abs(x1))))**3)
+
+        err_w = boot_err_w(x1,y1,err_y1)
+
+        return w/np.sum(1./err_y1**2),np.abs(w)/np.sum(1./err_y1**2),err_w
+
+    def calculate_wt(self):
+        """
+        calculate wt= ...
+        """
+        y, err_y, mask, size_x = self.y, self.err_y, self.mask, self.size_x 
+        x = np.array(np.arange(-len(mask)/2,len(mask)/2,1))
+        x = x[mask]
+        w = 0.
+        err_w = 0.
+
+        mask1 = (x >= 0)*(x < size_x)*(err_y <= 5)  
+        x1 = x[mask1]
+        y1 = y[mask1]
+        err_y1 = err_y[mask1]
+ 
+        for i in range(len(x1)):
+            w += np.abs(x1[i])*y1[i]/err_y1[i]**2/((np.float(np.max(np.abs(x1))))**3)
+
+        err_w = boot_err_w(x1,y1,err_y1)
+
+        return np.abs(w)/np.sum(1./err_y1**2),err_w #w/np.sum(1./err_y1**2),
+  
+            
+
+
 
 
 if __name__=="__main__":
-       
 
-    with open("/home/vinicius/Documents/sidm/data/z_010_015_snr_100_150_radius_1_15/file4.txt", "r") as ins:
+    data_dir = '/home/vinicius/Documents/sidm/data/z_005_02_snr_gt_100_radius_gt_1/i_band'
+
+    folder = 'file_1000'       
+
+    with open(data_dir+"/"+folder+".txt", "r") as ins:
         lfiles = []
         for line in ins:
             lfiles.append(line)
 
-
-    folder = 'file_4'
-
-    wf    = []
-    w2f   = []
-    errw  = []
-    errw2 = []
-    w3f   = []
-    errw3 = []
-    w4f   = []
-    errw4 = []
-    w5f   = []
-    errw5 = []
-    w6f   = []
-    errw6 = []
-    fil   = []
+    wrf     = []
+    err_wrf = []
+    wlf     = []
+    err_wlf = []
+    wtf     = []
+    err_wtf = []
+    fil     = []
+    type_g  = []
 
     for f in lfiles:
 
         fil.append(f[:-6])
 
-        data, weight, size_x = prepare_data(f)
+        data, weight, size_x = prepare_data(f,data_dir)
 
         #x,y,err_y,mask = fit_warp_curve(f,data,weight)
 
@@ -451,78 +516,77 @@ if __name__=="__main__":
         mask = mask.astype(bool)
 
         w = Warp_Strength(y,err_y,mask,size_x)
+
+        wrs,wr,err_wr = w.calculate_wr()
+
+        wls,wl,err_wl = w.calculate_wl()
+
+        wt,err_wt = w.calculate_wt()
+
+        if((wrs >  2.*err_wr)*( wls >  2.*err_wl)): type_g.append('U')
+        if((wrs < -2.*err_wr)*( wls < -2.*err_wl)): type_g.append('U')
+        if((wrs >  2.*err_wr)*( wls < -2.*err_wl)): type_g.append('S')
+        if((wrs < -2.*err_wr)*( wls >  2.*err_wl)): type_g.append('S')
+        if((wr  >  2.*err_wr)*( wl  <  2.*err_wl)): type_g.append('N')
+        if((wr  <  2.*err_wr)*( wl  >  2.*err_wl)): type_g.append('N')
+        if((wr  <  2.*err_wr)*( wl  <  2.*err_wl)): type_g.append('F') 
     
-        #w1,err1 = calculate_w1(y,err_y,mask,size_x)
-
-        #w2,err2 = calculate_w2(y,err_y,mask,size_x)
-
-        #w3,err3 = calculate_w3(y,err_y,mask,size_x)
-
-        w4,err4 = w.calculate_w4()
-
-        w5,err5 = w.calculate_w5()
-
-        #w6,err6 = calculate_w_gp(y,err_y,mask,size_x)
-       
-        #print(w1,err1,w2,err2,w3,w4,err4,w5,err5)#,w6,err6)
-
-        #wf.append(w1)
-        #w2f.append(w2)
-        #errw.append(err1)
-        #errw2.append(err2) 
-        #w3f.append(w3)
-        w4f.append(w4)
-        errw4.append(err4)
-        w5f.append(w5)
-        errw5.append(err5)
-        #w6f.append(w6)
-        #errw6.append(err6)
+        wrf.append(wr)
+        err_wrf.append(err_wr)
+        wlf.append(wl)
+        err_wlf.append(err_wl)
+        wtf.append(wt)
+        err_wtf.append(err_wt)
 
 
     fil = np.array(fil)
+    type_g = np.array(type_g)
 
-    #wf    = np.array(wf)
-    #w2f   = np.array(w2f)
-    #errw  = np.array(errw)
-    #errw2 = np.array(errw2) 
-    #w3f   = np.array(w3f)
-    w4f   = np.array(w4f)
-    errw4 = np.array(errw4)
-    w5f   = np.array(w5f)
-    errw5 = np.array(errw5)
-    #w6f   = np.array(w6f)
-    #errw6 = np.array(errw6)
+    wrf     = np.array(wrf)
+    err_wrf = np.array(err_wrf)
+    wlf     = np.array(wlf)
+    err_wlf = np.array(err_wlf)
+    wtf     = np.array(wtf)
+    err_wtf = np.array(err_wtf)
 
-
-    #final = np.column_stack((fil,wf,errw,w2f,errw2,w3f,w4f,errw4))
-    final = np.column_stack((fil,w4f,errw4,w5f,errw5))#,w6f,errw6))
-    np.savetxt('../output/'+str(folder)+'/'+'w_w2_err.txt',final,delimiter=" ",fmt="%s")
-
-    #np.savetxt('../output/'+str(folder)+'/'+'w_w2_err.txt',np.array([fil,wf,errw,w2f,errw2]).T)
+    final = np.column_stack((fil,wrf,err_wrf,wlf,err_wlf,wtf,err_wtf,type_g))
+    np.savetxt('../output/'+str(folder)+'/'+'wr_wl_wt.txt',final,delimiter=" ",fmt="%s")
+    
+    plt.figure()
+    plt.hist(wrf)
+    plt.savefig('../figs/'+str(folder)+'/'+'histwr.png')
 
     plt.figure()
-    plt.hist(w5f)
-    plt.savefig('../figs/'+str(folder)+'/'+'histw5_err_lt_5.png')
+    plt.hist(err_wrf)
+    plt.savefig('../figs/'+str(folder)+'/'+'hist_err_wr.png')
 
     plt.figure()
-    plt.hist(errw5)
-    plt.savefig('../figs/'+str(folder)+'/'+'hist_errw5_lt_5.png')
+    plt.hist(err_wrf/wrf)
+    plt.savefig('../figs/'+str(folder)+'/'+'ratio_hist_wr.png')
 
     plt.figure()
-    plt.hist(errw5/w5f)
-    plt.savefig('../figs/'+str(folder)+'/'+'ratio_hist_w5_lt_5.png')
+    plt.hist(wlf)
+    plt.savefig('../figs/'+str(folder)+'/'+'histwl.png')
 
     plt.figure()
-    plt.hist(w4f)
-    plt.savefig('../figs/'+str(folder)+'/'+'histw4_err_lt_5.png')
+    plt.hist(err_wlf)
+    plt.savefig('../figs/'+str(folder)+'/'+'hist_err_wl.png')
 
     plt.figure()
-    plt.hist(errw4)
-    plt.savefig('../figs/'+str(folder)+'/'+'hist_errw4_lt_5.png')
+    plt.hist(err_wlf/wlf)
+    plt.savefig('../figs/'+str(folder)+'/'+'ratio_hist_wl.png')
 
     plt.figure()
-    plt.hist(errw4/w4f)
-    plt.savefig('../figs/'+str(folder)+'/'+'ratio_hist_w4_lt_5.png')
+    plt.hist(wtf)
+    plt.savefig('../figs/'+str(folder)+'/'+'histwt.png')
+
+    plt.figure()
+    plt.hist(err_wtf)
+    plt.savefig('../figs/'+str(folder)+'/'+'hist_err_wt.png')
+
+    plt.figure()
+    plt.hist(err_wtf/wtf)
+    plt.savefig('../figs/'+str(folder)+'/'+'ratio_hist_wt.png')
 
 
 
