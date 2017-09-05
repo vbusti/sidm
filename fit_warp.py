@@ -37,7 +37,7 @@ def my_bootstrap(x,y,sigma):
     return np.std(mean_values)
             
 
-def fit_warp_curve(file,data,weight):
+def fit_warp_curve(file,folder,data,weight,ycent):
     """
     fit_warp_curve picks data and errors to fit the warp curve.
     file is used only for plotting 
@@ -60,9 +60,9 @@ def fit_warp_curve(file,data,weight):
         datad = datad[maskd] 
         wd    = wd[maskd]
         err_total = np.sqrt(1./wd)
-        print(arrd)
-        print(datad)
-        print(wd)
+        #print(arrd)
+        #print(datad)
+        #print(wd)
 
         try:
             popt, pcov = curve_fit(my_gaussian, arrd, datad,p0=[40,30,3],sigma=err_total)
@@ -85,7 +85,7 @@ def fit_warp_curve(file,data,weight):
     arr2 = arr2[mymask]
     mymu = mymu[mymask]
     mysigma = mysigma[mymask]
-    mymup = mymu - np.float(b)/2.
+    mymup = mymu - np.float(b)/2. - (ycent - 45.)
 
     plt.figure()
     plt.xlim(10,50)
