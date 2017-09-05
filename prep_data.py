@@ -63,7 +63,7 @@ def prepare_data(file,data_dir,folder):
     apertures = []
     for prop in props:
         position = (prop.xcentroid.value, prop.ycentroid.value)
-        print(position) 
+        #print(position) 
         a = prop.semimajor_axis_sigma.value * r
         b = prop.semiminor_axis_sigma.value * r
         theta = prop.orientation.value
@@ -77,6 +77,8 @@ def prepare_data(file,data_dir,folder):
 
     mytheta  = props[my_label].orientation.value
     mysize   = np.int(np.round(r*props[my_label].semimajor_axis_sigma.value))
+    my_x     = props[my_label].xcentroid.value
+    my_y     = props[my_label].ycentroid.value
    
     mask_obj = np.ones(data.shape,dtype='bool')
     mask_obj[(segm.data != 0)*(segm.data != props[my_label].id)] = 0
@@ -94,18 +96,20 @@ def prepare_data(file,data_dir,folder):
     plt.savefig('../figs/'+str(folder)+'/'+str(file[:-5])+'fig3.png')
     plt.close()
 
-    data4 = rotate(data, np.rad2deg(mytheta))
-    data4 = data4[data4.shape[0]/2 - 30:data4.shape[0]/2 + 30,data4.shape[1]/2 - 30:data4.shape[1]/2 + 30]   
+    data_rot = rotate(data, np.rad2deg(mytheta))
+    data_rot = data_rot[data_rot.shape[0]/2 - 30:data_rot.shape[0]/2 + 30,data_rot.shape[1]/2 - 30:data_rot.shape[1]/2 + 30]   
 
 
     w_rot  = rotate(weight, np.rad2deg(mytheta))
     w      = w_rot[w_rot.shape[0]/2 - 30:w_rot.shape[0]/2 + 30,w_rot.shape[1]/2 - 30:w_rot.shape[1]/2 + 30] 
 
     plt.figure()    
-    plt.imshow(data4, origin='lower', cmap='Greys_r') 
+    plt.imshow(data_rot, origin='lower', cmap='Greys_r') 
     plt.savefig('../figs/'+str(folder)+'/'+str(file[:-5])+'fig4.png')
 
-    return data4, w, mysize 
+    np.savetxt('../output/'+str(folder)+'/'+str(file[:-5])+'_size_xcent_ycent.txt',np.array([mysize,my_x,my_y]))
+
+    return data_rot, w, mysize, my_x, my_y 
 
 
 
