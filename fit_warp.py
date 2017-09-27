@@ -4,10 +4,14 @@
 
 from __future__ import print_function
 import numpy as np
+import matplotlib
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 from matplotlib import cm
+import sidm_config as cfg
 from scipy.optimize import curve_fit
 import random
+import os
 
 
 def my_gaussian(x,amp,mean,sigma):
@@ -37,14 +41,23 @@ def my_bootstrap(x,y,sigma):
     return np.std(mean_values)
             
 
-def fit_warp_curve(file,folder,data,weight,ycent):
+def fit_warp_curve(file,folder,data,weight,ycent,x_shape,y_shape):
     """
     fit_warp_curve picks data and errors to fit the warp curve.
     file is used only for plotting 
     It returns the warp curve: (x,y,err_y) and a mask to calculate the warpness
     """
+
+    # check if there is a folder for the figures, if not create it
+
+    if not os.path.isdir('../fig_gauss/'+str(folder)):
+        os.mkdir('../fig_gauss/'+str(folder))
+
+
+
     a = data.shape[1]
     b = data.shape[0]
+    print(a,b)
 
     mymu     = np.zeros(a)
     mysigma  = np.zeros(a)
@@ -59,10 +72,10 @@ def fit_warp_curve(file,folder,data,weight,ycent):
         arrd  = arrd[maskd]
         datad = datad[maskd] 
         wd    = wd[maskd]
-        err_total = np.sqrt(1./wd)
-        #print(arrd)
-        #print(datad)
-        #print(wd)
+        if(cfg.DATA_TYPE == 'REAL'):
+            err_total = np.sqrt(1./wd)
+        else:
+            err_total = wd
 
         try:
             popt, pcov = curve_fit(my_gaussian, arrd, datad,p0=[40,30,3],sigma=err_total)
@@ -71,13 +84,14 @@ def fit_warp_curve(file,folder,data,weight,ycent):
         else:        
             mymu[i]    = popt[1]
             mysigma[i] = my_bootstrap(arrd,datad,err_total) 
-    
-            plt.figure()
-            plt.plot(arrd, my_gaussian(arrd, *popt),label='curve fit')
-            plt.scatter(arrd,datad,label='data')
-            plt.legend()
-            plt.savefig('../fig_gauss/'+str(folder)+'/'+str(file[:-5])+'fig_'+str(i)+'.png')
-            plt.close()
+
+            if(cfg.PLOT_GAUSSIAN_COLUMNS == True):
+                plt.figure()
+                plt.plot(arrd, my_gaussian(arrd, *popt),label='curve fit')
+                plt.scatter(arrd,datad,label='data')
+                plt.legend()
+                plt.savefig('../fig_gauss/'+str(folder)+'/'+str(file[:-5])+'fig_'+str(i)+'.png')
+                plt.close()
     
     arr2 = range(a)
     arr2 = np.array(arr2)
@@ -85,7 +99,8 @@ def fit_warp_curve(file,folder,data,weight,ycent):
     arr2 = arr2[mymask]
     mymu = mymu[mymask]
     mysigma = mysigma[mymask]
-    mymup = mymu - np.float(b)/2. - (ycent - 45.)
+    mymup = mymu - np.float(b)/2. - (ycent - y_shape/2.)
+    print(mymup)
 
     plt.figure()
     plt.xlim(10,50)

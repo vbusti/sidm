@@ -4,8 +4,11 @@
 
 from __future__ import print_function
 import numpy as np
+import matplotlib
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 from matplotlib import cm
+import sidm_config as cfg
 from astropy.io import fits
 from astropy.wcs import WCS
 from scipy import ndimage
@@ -20,6 +23,7 @@ from astropy.modeling import models, fitting
 from astropy.stats import sigma_clip as ast_sc
 from scipy.ndimage import rotate
 from scipy.stats import norm
+import os
 
 def prepare_data(file,data_dir,folder):
     """
@@ -27,17 +31,34 @@ def prepare_data(file,data_dir,folder):
     the data and errors ready to fit a warp curve, along with the maximum distance from the center 
 
     """
-    hdu = fits.open(data_dir+'/'+str(file[:-1]))[0]
+
+
+    # check if there is a folder for the figures, if not create it
+
+    if not os.path.isdir('../figs/'+str(folder)):
+        os.mkdir('../figs/'+str(folder))
+
+    # check if there is a folder for the text output, if not create it
+
+    if not os.path.isdir('../output/'+str(folder)):
+        os.mkdir('../output/'+str(folder))
+
+
+    print(data_dir+'/'+str(file))
+
+    hdu = fits.open(data_dir+'/'+str(file[:-1]))[0]#fits.open(data_dir+'/'+str(file[:-1]))[0]
     wcs = WCS(hdu.header)
 
     data = hdu.data
-
-    weight = fits.open(data_dir+'/'+str(file[:-1]))[1].data
 
     sigma_clip = SigmaClip(sigma=3., iters=10)
     bkg_estimator = MedianBackground()
     bkg = Background2D(data, (25, 25), filter_size=(3, 3),sigma_clip=sigma_clip, bkg_estimator=bkg_estimator)
 
+    if(cfg.DATA_TYPE == 'REAL'):
+        weight = fits.open(data_dir+'/'+str(file[:-1]))[1].data
+    else:
+        weight = bkg.background_rms
 
     threshold = bkg.background + (3. * bkg.background_rms)
 
@@ -52,12 +73,16 @@ def prepare_data(file,data_dir,folder):
     ax1.imshow(data, origin='lower', cmap='Greys_r')
     ax2.imshow(segm, origin='lower', cmap=rand_cmap)
     plt.savefig('../figs/'+str(folder)+'/'+str(file[:-5])+'fig2.png')
+    plt.close()
 
 
     props = source_properties(data, segm)
     tbl = properties_table(props)
 
     my_min = 100000.
+
+    x_shape = np.float(data.shape[0])
+    y_shape = np.float(data.shape[1])
 
     r = 3.    # approximate isophotal extent
     apertures = []
@@ -68,7 +93,7 @@ def prepare_data(file,data_dir,folder):
         b = prop.semiminor_axis_sigma.value * r
         theta = prop.orientation.value
         apertures.append(EllipticalAperture(position, a, b, theta=theta))
-        my_dist = np.sqrt((prop.xcentroid.value - 44.)**2+ (prop.ycentroid.value - 44.)**2)
+        my_dist = np.sqrt((prop.xcentroid.value - x_shape/2.)**2+ (prop.ycentroid.value - y_shape/2.)**2)
         if(my_dist < my_min):
             my_label = prop.id - 1
             my_min = my_dist
@@ -79,6 +104,7 @@ def prepare_data(file,data_dir,folder):
     mysize   = np.int(np.round(r*props[my_label].semimajor_axis_sigma.value))
     my_x     = props[my_label].xcentroid.value
     my_y     = props[my_label].ycentroid.value
+
    
     mask_obj = np.ones(data.shape,dtype='bool')
     mask_obj[(segm.data != 0)*(segm.data != props[my_label].id)] = 0
@@ -106,10 +132,11 @@ def prepare_data(file,data_dir,folder):
     plt.figure()    
     plt.imshow(data_rot, origin='lower', cmap='Greys_r') 
     plt.savefig('../figs/'+str(folder)+'/'+str(file[:-5])+'fig4.png')
+    plt.close()
 
-    np.savetxt('../output/'+str(folder)+'/'+str(file[:-5])+'_size_xcent_ycent.txt',np.array([mysize,my_x,my_y]))
+    np.savetxt('../output/'+str(folder)+'/'+str(file[:-5])+'_size_xcent_ycent_xy_shape.txt',np.array([mysize,my_x,my_y,x_shape,y_shape]))
 
-    return data_rot, w, mysize, my_x, my_y 
+    return data_rot, w, mysize, my_x, my_y, x_shape, y_shape 
 
 
 
