@@ -25,6 +25,51 @@ from scipy.ndimage import rotate
 from scipy.stats import norm
 import os
 
+def find_centroid(data):
+    """
+    find the centroid again after the image was rotated
+    """
+
+    sigma_clip = SigmaClip(sigma=3., iters=10)
+    bkg_estimator = MedianBackground()
+    bkg = Background2D(data, (25, 25), filter_size=(3, 3),sigma_clip=sigma_clip, bkg_estimator=bkg_estimator)
+
+    threshold = bkg.background + (3. * bkg.background_rms)
+
+    sigma = 2.0 * gaussian_fwhm_to_sigma    # FWHM = 2.
+    kernel = Gaussian2DKernel(sigma, x_size=3, y_size=3)
+    kernel.normalize()
+    segm = detect_sources(data, threshold, npixels=5, filter_kernel=kernel)
+
+    props = source_properties(data, segm)
+    tbl = properties_table(props)
+
+    my_min = 100000.
+
+    x_shape = np.float(data.shape[0])
+    y_shape = np.float(data.shape[1])
+
+    r = 3.    # approximate isophotal extent
+    apertures = []
+    for prop in props:
+        position = (prop.xcentroid.value, prop.ycentroid.value)
+        #print(position) 
+        a = prop.semimajor_axis_sigma.value * r
+        b = prop.semiminor_axis_sigma.value * r
+        theta = prop.orientation.value
+        apertures.append(EllipticalAperture(position, a, b, theta=theta))
+        my_dist = np.sqrt((prop.xcentroid.value - x_shape/2.)**2+ (prop.ycentroid.value - y_shape/2.)**2)
+        if(my_dist < my_min):
+            my_label = prop.id - 1
+            my_min = my_dist
+        
+    mytheta  = props[my_label].orientation.value
+    mysize   = np.int(np.round(r*props[my_label].semimajor_axis_sigma.value))
+    my_x     = props[my_label].xcentroid.value
+    my_y     = props[my_label].ycentroid.value
+    return my_x,my_y,mytheta,mysize
+
+
 def prepare_data(file,data_dir,folder):
     """
     prepare_data picks a file with the image of the galaxy, detect the central object, rotate it to the major axis, and returns 
@@ -88,7 +133,6 @@ def prepare_data(file,data_dir,folder):
     apertures = []
     for prop in props:
         position = (prop.xcentroid.value, prop.ycentroid.value)
-        #print(position) 
         a = prop.semimajor_axis_sigma.value * r
         b = prop.semiminor_axis_sigma.value * r
         theta = prop.orientation.value
@@ -123,20 +167,27 @@ def prepare_data(file,data_dir,folder):
     plt.close()
 
     data_rot = rotate(data, np.rad2deg(mytheta))
-    data_rot = data_rot[data_rot.shape[0]/2 - 30:data_rot.shape[0]/2 + 30,data_rot.shape[1]/2 - 30:data_rot.shape[1]/2 + 30]   
+    data_rot = data_rot[data_rot.shape[0]/2 - 100:data_rot.shape[0]/2 + 100,data_rot.shape[1]/2 - 100:data_rot.shape[1]/2 + 100]   
 
 
     w_rot  = rotate(weight, np.rad2deg(mytheta))
-    w      = w_rot[w_rot.shape[0]/2 - 30:w_rot.shape[0]/2 + 30,w_rot.shape[1]/2 - 30:w_rot.shape[1]/2 + 30] 
+    w      = w_rot[w_rot.shape[0]/2 - 100:w_rot.shape[0]/2 + 100,w_rot.shape[1]/2 - 100:w_rot.shape[1]/2 + 100] 
 
     plt.figure()    
     plt.imshow(data_rot, origin='lower', cmap='Greys_r') 
     plt.savefig('../figs/'+str(folder)+'/'+str(file[:-5])+'fig4.png')
     plt.close()
 
-    np.savetxt('../output/'+str(folder)+'/'+str(file[:-5])+'_size_xcent_ycent_xy_shape.txt',np.array([mysize,my_x,my_y,x_shape,y_shape]))
+    newx,newy,newtheta,newsize = find_centroid(data_rot)
+    print('old center = ',my_x,my_y,mysize)
+    print('new center = ',newx,newy,np.rad2deg(newtheta),newsize)
 
-    return data_rot, w, mysize, my_x, my_y, x_shape, y_shape 
+    x_shape2 = np.float(data_rot.shape[0])
+    y_shape2 = np.float(data_rot.shape[1])
+
+    np.savetxt('../output/'+str(folder)+'/'+str(file[:-5])+'_size_xcent_ycent_xy_shape.txt',np.array([newsize,newx,newy,x_shape2,y_shape2]))
+
+    return data_rot, w, newsize, newx, newy, x_shape2, y_shape2   
 
 
 
