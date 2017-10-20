@@ -59,7 +59,7 @@ class Warp_Strength:
         err_w = np.sqrt(err_w/np.sum(1./err_y1**2)**2)
 
         err_w2 = boot_err_w(x1,y1,err_y1,size_x)
-        print('err_r',err_w,err_w2) 
+        print('err_r',err_w,err_w2,np.abs(w)/np.sum(1./err_y1**2)) 
 
         return w/np.sum(1./err_y1**2),np.abs(w)/np.sum(1./err_y1**2),err_w
 
@@ -87,7 +87,7 @@ class Warp_Strength:
         err_w = np.sqrt(err_w/np.sum(1./err_y1**2)**2)
 
         err_w2 = boot_err_w(x1,y1,err_y1,size_x)
-        print('err_l',err_w,err_w2)
+        print('err_l',err_w,err_w2,np.abs(w)/np.sum(1./err_y1**2))
 
         #err_w = boot_err_w(x1,y1,err_y1,size_x)
 
@@ -102,6 +102,7 @@ class Warp_Strength:
         x = np.array(np.arange(-len(mask)/2,len(mask)/2,1))
         x = x[mask]
         x = x - (xcent - (x_shape/2. -1.))
+        print('x=',x)
         w = 0.
         err_w = 0.
 
@@ -117,7 +118,7 @@ class Warp_Strength:
         err_w = np.sqrt(err_w/np.sum(1./err_y1**2)**2)
 
         err_w2 = boot_err_w(x1,y1,err_y1,size_x)
-        print('err t',err_w,err_w2)
+        print('err t',err_w,err_w2,np.abs(w)/np.sum(1./err_y1**2))
 
         #err_w = boot_err_w(x1,y1,err_y1,2*size_x)
 

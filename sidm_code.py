@@ -4,6 +4,8 @@
 
 from __future__ import print_function
 import numpy as np
+import matplotlib
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import sidm_config as cfg
 from matplotlib import cm
