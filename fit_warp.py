@@ -17,7 +17,7 @@ import os
 def my_gaussian(x,amp,mean,sigma):
     return amp*np.exp(-(x-mean)**2/(2.*sigma**2)) 
 
-def my_bootstrap(x,y,sigma):
+def my_bootstrap(x,y,sigma,y_shape):
     acc=0
     mean_values = np.zeros(500)
     while(acc < 500):
@@ -32,7 +32,7 @@ def my_bootstrap(x,y,sigma):
                 y_b[i]    = y[aux]
                 err_yb[i] = sigma[aux] 
 
-            popt, pcov = curve_fit(my_gaussian, x_b, y_b,p0=[40,30,3],sigma=err_yb) 
+            popt, pcov = curve_fit(my_gaussian, x_b, y_b,p0=[40,np.float(y_shape)/2.,3],sigma=err_yb) 
         except:
             j=0# do nothing  
         else:        
@@ -78,12 +78,12 @@ def fit_warp_curve(file,folder,data,weight,ycent,x_shape,y_shape):
             err_total = wd
 
         try:
-            popt, pcov = curve_fit(my_gaussian, arrd, datad,p0=[40,30,3],sigma=err_total)
+            popt, pcov = curve_fit(my_gaussian, arrd, datad,p0=[40,np.float(y_shape)/2.,3],sigma=err_total)
         except:
             mymask[i] = False 
         else:        
             mymu[i]    = popt[1]
-            mysigma[i] = my_bootstrap(arrd,datad,err_total) 
+            mysigma[i] = my_bootstrap(arrd,datad,err_total,y_shape) 
 
             if(cfg.PLOT_GAUSSIAN_COLUMNS == True):
                 plt.figure()
@@ -99,20 +99,24 @@ def fit_warp_curve(file,folder,data,weight,ycent,x_shape,y_shape):
     arr2 = arr2[mymask]
     mymu = mymu[mymask]
     mysigma = mysigma[mymask]
-    mymup = mymu - np.float(b)/2. - (ycent - y_shape/2.)
+    mymup = mymu - ycent  #np.float(b)/2. - (ycent - y_shape/2.)
     print(mymup)
 
     plt.figure()
-    plt.xlim(10,50)
-    plt.ylim(20,40)     
+    #plt.xlim(10,50)
+    #plt.ylim(20,40)
+    plt.xlim(xcent-20,xcent+20)
+    plt.ylim(ycent-15,ycent+15)     
     plt.imshow(data, origin='lower', cmap='Greys_r') 
     plt.plot(arr2,mymu,markersize=0.1,lw=1)
     plt.savefig('../figs/'+str(folder)+'/'+str(file[:-5])+'fig5.png')
     plt.close()
 
     plt.figure()
-    plt.xlim(10,50)
-    plt.ylim(20,40) 
+    #plt.xlim(10,50)
+    #plt.ylim(20,40)
+    plt.xlim(xcent-20,xcent+20)
+    plt.ylim(ycent-15,ycent+15) 
     plt.imshow(data, origin='lower', cmap='Greys_r') 
     plt.errorbar(arr2,mymu,yerr=mysigma,fmt='o',markersize=0.1,lw=1.0,color='blue')
     plt.savefig('../figs/'+str(folder)+'/'+str(file[:-5])+'fig6.png')
